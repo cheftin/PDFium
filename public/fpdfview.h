@@ -176,6 +176,7 @@ typedef int FPDF_ANNOT_APPEARANCEMODE;
 // Dictionary value types.
 typedef int FPDF_OBJECT_TYPE;
 
+/*
 #if defined(COMPONENT_BUILD)
 // FPDF_EXPORT should be consistent with |export| in the pdfium_fuzzer
 // template in testing/fuzzers/BUILD.gn.
@@ -200,6 +201,25 @@ typedef int FPDF_OBJECT_TYPE;
 #define FPDF_CALLCONV __stdcall
 #else
 #define FPDF_CALLCONV
+#endif
+*/
+
+#ifdef FPDFSDK_EXPORTS
+#  if defined(_WIN32)
+#    define FPDF_EXPORT __declspec(dllexport)
+#    define FPDF_CALLCONV __stdcall
+#  else
+#    define FPDF_EXPORT __attribute__((visibility("default")))
+#    define FPDF_CALLCONV
+#  endif
+#else
+#  if defined(_WIN32)
+#    define FPDF_EXPORT __declspec(dllimport)
+#    define FPDF_CALLCONV __stdcall
+#  else
+#    define FPDF_EXPORT
+#    define FPDF_CALLCONV
+#  endif
 #endif
 
 // Exported Functions

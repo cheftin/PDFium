@@ -23,6 +23,7 @@ config("pdfium_common_config") {
     "OPJ_STATIC",
     "PNG_PREFIX",
     "PNG_USE_READ_MACROS",
+    "FPDFSDK_EXPORTS",
   ]
 
   if (pdf_enable_click_logging) {
@@ -121,12 +122,14 @@ jumbo_source_set("pdfium_public_headers") {
     "public/fpdf_text.h",
     "public/fpdf_transformpage.h",
     "public/fpdfview.h",
+    "public/fpdf_api.h",
   ]
 
   public_configs = [ ":pdfium_public_config" ]
 }
 
-jumbo_static_library("pdfium") {
+# jumbo_static_library("pdfium") {
+shared_library("pdfium") {
   sources = [
     "fpdfsdk/fpdf_annot.cpp",
     "fpdfsdk/fpdf_attachment.cpp",
@@ -149,6 +152,7 @@ jumbo_static_library("pdfium") {
     "fpdfsdk/fpdf_text.cpp",
     "fpdfsdk/fpdf_transformpage.cpp",
     "fpdfsdk/fpdf_view.cpp",
+    "fpdfsdk/fpdf_api.cpp",
   ]
 
   libs = []
@@ -174,6 +178,7 @@ jumbo_static_library("pdfium") {
     "fxjs",
     "third_party:pdfium_base",
     "third_party:skia_shared",
+    ":image_diff",
   ]
 
   public_deps = [
@@ -209,6 +214,17 @@ jumbo_static_library("pdfium") {
     complete_static_lib = true
     configs -= [ "//build/config/compiler:thin_archive" ]
   }
+}
+
+jumbo_static_library("image_diff") {
+  sources = [
+    "testing/image_diff/image_diff_png.cpp",
+    "testing/image_diff/image_diff_png.h",
+  ]
+  configs += [ ":pdfium_core_config" ]
+  deps = [
+    "third_party:png",
+  ]
 }
 
 # Targets below this are only visible within this file (and to the

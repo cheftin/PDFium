@@ -1,0 +1,22 @@
+language: cpp
+os:
+    - linux
+    - osx
+
+notifications:
+  email:
+    on_success: never # default: change
+    on_failure: always # default: always
+
+
+before_install:
+    - if [ `uname` = "Linux" ]; then
+        sudo apt-get update -qq -y;
+        sudo apt-get install curl python perl -y;
+      elif [ `uname` = "Darwin" ]; then
+        brew update;
+        brew install python@2;
+      fi
+
+script:
+    - ./ci-build/build.sh

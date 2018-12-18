@@ -1,0 +1,17 @@
+version: 0.0.{build}
+image: Visual Studio 2017
+clone_depth: 2
+clone_folder: c:\project
+
+branches:
+  only:
+    - cheftin
+
+notifications:
+  - provider: Email
+    on_build_success: false
+    on_build_failure: true
+    on_build_status_changed: false
+
+build_script:
+  - cmd: ./ci-build/build.bat

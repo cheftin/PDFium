@@ -14,7 +14,7 @@
 
 #include "core/fxcrt/unowned_ptr.h"
 #include "core/fxcrt/widestring.h"
-#include "fxjs/jse_define.h"
+#include "fxjs/xfa/jse_define.h"
 #include "third_party/base/optional.h"
 #include "third_party/base/span.h"
 #include "xfa/fxfa/fxfa_basic.h"
@@ -234,17 +234,14 @@ class CJX_Object {
 
   // Returns a pointer to the XML node that needs to be updated with the new
   // attribute value. |nullptr| if no update is needed.
-  CFX_XMLElement* SetValue(XFA_Attribute eAttr,
-                           XFA_AttributeType eType,
-                           void* pValue,
-                           bool bNotify);
+  CFX_XMLElement* SetValue(XFA_Attribute eAttr, void* pValue, bool bNotify);
   int32_t Subform_and_SubformSet_InstanceIndex();
 
   XFA_MAPMODULEDATA* CreateMapModuleData();
   XFA_MAPMODULEDATA* GetMapModuleData() const;
   void SetMapModuleValue(void* pKey, void* pValue);
-  bool GetMapModuleValue(void* pKey, void** pValue) const;
-  bool GetMapModuleString(void* pKey, WideStringView* pValue);
+  Optional<void*> GetMapModuleValue(void* pKey) const;
+  Optional<WideString> GetMapModuleString(void* pKey);
   void SetMapModuleBuffer(void* pKey,
                           void* pValue,
                           int32_t iBytes,

@@ -158,8 +158,8 @@ FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV FPDFPage_GetArtBox(FPDF_PAGE page,
 
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
 FPDFPage_TransFormWithClip(FPDF_PAGE page,
-                           FS_MATRIX* matrix,
-                           FS_RECTF* clipRect) {
+                           const FS_MATRIX* matrix,
+                           const FS_RECTF* clipRect) {
   if (!matrix && !clipRect)
     return false;
 
@@ -235,9 +235,10 @@ FPDFPage_TransFormWithClip(FPDF_PAGE page,
     else
       continue;
 
-    CFX_Matrix m(matrix->a, matrix->b, matrix->c, matrix->d, matrix->e,
-                 matrix->f);
-    pDict->SetMatrixFor("Matrix", pDict->GetMatrixFor("Matrix") * m);
+    if (matrix) {
+      CFX_Matrix m = CFXMatrixFromFSMatrix(*matrix);
+      pDict->SetMatrixFor("Matrix", pDict->GetMatrixFor("Matrix") * m);
+    }
   }
 
   return true;

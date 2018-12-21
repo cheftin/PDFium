@@ -236,10 +236,7 @@ class CFX_FloatRect {
 
   void Normalize();
 
-  void Reset();
-
   bool IsEmpty() const { return left >= right || bottom >= top; }
-
   bool Contains(const CFX_PointF& point) const;
   bool Contains(const CFX_FloatRect& other_rect) const;
 
@@ -345,12 +342,6 @@ class CFX_RectF {
         width(other.width),
         height(other.height) {}
 
-  void Reset() {
-    left = 0;
-    top = 0;
-    width = 0;
-    height = 0;
-  }
   CFX_RectF& operator+=(const PointType& p) {
     left += p.x;
     top += p.y;

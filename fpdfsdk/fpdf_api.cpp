@@ -256,7 +256,7 @@ void FPDF_GetPathItem(CPDF_PathObject* pPathObj, FPDF_PATH_ITEM& pathItem) {
     pathItem.isStroke = pPathObj->m_bStroke;
     pathItem.width = pPathObj->m_GraphState.GetLineWidth();
     pathItem.isRect = pPathObj->m_Path.IsRect();
-    pPathObj->m_Path.Transform(&pPathObj->m_Matrix);
+    pPathObj->m_Path.Transform(pPathObj->m_Matrix);
     if (pPathObj->m_ClipPath.HasRef()) {
         CFX_FloatRect rect = pPathObj->m_ClipPath.GetClipBox();
         pathItem.clipBox.left = rect.left;
@@ -336,8 +336,8 @@ void FPDF_ProcessImageObject(
 }
 
 void FPDF_ProcessFormObject(
-    CPDF_FormObject* pFormObj, 
-    const CFX_Matrix& formMatrix, 
+    CPDF_FormObject* pFormObj,
+    const CFX_Matrix& formMatrix,
     std::vector<CPDF_PathObject*>& paths,
     std::vector<CPDF_ImageObject*>& images,
     std::vector<CPDF_ShadingObject*>& shadings) {
@@ -364,12 +364,12 @@ void FPDF_ProcessFormObject(
 }
 
 void FPDF_ProcessObject(
-    CPDF_Page* pPage, 
+    CPDF_Page* pPage,
     std::vector<FPDF_PATH_ITEM>& pathItems,
     std::vector<FPDF_IMAGE_ITEM>& imageItems) {
     if (pPage->GetPageObjectList()->empty())
         return;
-    
+
     CFX_Matrix matrix;
     FPDF_GetPageMatrix(pPage, matrix);
     std::vector<CPDF_PathObject*> paths;
@@ -418,7 +418,7 @@ FPDF_LoadPageObject(FPDF_PAGE page, FPDF_PAGE_ITEM& pageObj) {
     CPDF_TextPage* textPage = new CPDF_TextPage(
         pPDFPage, viewRef.IsDirectionR2L() ? FPDFText_Direction::Right : FPDFText_Direction::Left);
     textPage->ParseTextPage();
-    
+
     UnownedPtr<CPDF_TextObject> curTextObj = nullptr;
     for (int i = 0; i < textPage->CountChars(); i++) {
         FPDF_CHAR_ITEM charItem;
@@ -487,7 +487,7 @@ int FPDF_IterBookmarks(FPDF_DOCUMENT document, FPDF_BOOKMARK bookmark, std::vect
         }
 
         FPDF_DEST dest = FPDFBookmark_GetDest(document, child);
-        
+
         if (!dest) {
             FPDF_ACTION action = FPDFBookmark_GetAction(child);
             if (action) {
@@ -505,7 +505,7 @@ int FPDF_IterBookmarks(FPDF_DOCUMENT document, FPDF_BOOKMARK bookmark, std::vect
         item.title.clear();
         item.title.reserve(title.size());
         std::copy(title.begin(), title.end(), std::back_inserter(item.title));
-        
+
         index = FPDF_IterBookmarks(document, child, bookmarks, &item, item.index, index, level + 1);
         child = FPDFBookmark_GetNextSibling(document, child);
         bookmarks.push_back(item);

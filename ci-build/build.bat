@@ -55,6 +55,7 @@ if "%PLATFORM%"=="x86" echo target_cpu="x86" >> %PDFium_BUILD_DIR%\args.gn
 call gn gen %PDFium_BUILD_DIR%
 
 call ninja -C %PDFium_BUILD_DIR% pdfium
+if %errorlevel% neq 0 exit /b %errorlevel%
 
 copy %PDFium_CMAKE_CONFIG% %PDFium_STAGING_DIR%
 copy %PDFium_SOURCE_DIR%\LICENSE %PDFium_STAGING_DIR%

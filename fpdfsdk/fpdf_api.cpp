@@ -173,6 +173,26 @@ void FPDF_GetPageObjectBBox(CPDF_PageObject* pageObj, FPDF_RECT& box, CPDF_Page*
     box.bottom = rect.bottom;
 }
 
+void FPDF_GetPageObjectClipBox(CPDF_PageObject* pageObj, FPDF_RECT& box, CPDF_Page* pPage=nullptr) {
+    if (!pageObj || !pageObj->m_ClipPath.HasRef()) {
+        box.left = 0.0;
+        box.top = 0.0;
+        box.right = 0.0;
+        box.bottom = 0.0;
+        return;
+    }
+    CFX_FloatRect rect = pageObj->m_ClipPath.GetClipBox();
+    if (pPage) {
+        CFX_Matrix matrix;
+        FPDF_GetPageMatrix(pPage, matrix);
+        rect = matrix.TransformRect(rect);
+    }
+    box.left = rect.left;
+    box.top = rect.top;
+    box.right = rect.right;
+    box.bottom = rect.bottom;
+}
+
 void FPDF_GetTextStyle(FPDF_CHAR_INFO& charInfo, FPDF_TEXT_ITEM& textItem) {
     bool bHasFont = charInfo.m_pTextObj && charInfo.m_pTextObj->GetFont();
     if (bHasFont) {
@@ -417,6 +437,7 @@ FPDF_LoadPageObject(FPDF_PAGE page, FPDF_PAGE_ITEM& pageObj) {
     CPDF_ViewerPreferences viewRef(pPDFPage->GetDocument());
     CPDF_TextPage* textPage = new CPDF_TextPage(
         pPDFPage, viewRef.IsDirectionR2L() ? FPDFText_Direction::Right : FPDFText_Direction::Left);
+    textPage->setNeedTransformClipPath(true);
     textPage->ParseTextPage();
 
     UnownedPtr<CPDF_TextObject> curTextObj = nullptr;
@@ -431,6 +452,7 @@ FPDF_LoadPageObject(FPDF_PAGE page, FPDF_PAGE_ITEM& pageObj) {
             FPDF_GetTextStyle(charInfo, textItem);
             CPDF_TextObject* pTextObj = charInfo.m_pTextObj ? charInfo.m_pTextObj.Get() : nullptr;
             FPDF_GetPageObjectBBox(pTextObj, textItem.bbox, pPDFPage);
+            FPDF_GetPageObjectClipBox(pTextObj, textItem.clipBox, pPDFPage);
             FPDF_GetColor(pTextObj, textItem.fillColor, textItem.strokeColor);
             // std::wstring text = textPage->GetTextByObject(charInfo.m_pTextObj ? charInfo.m_pTextObj.Get() : nullptr).c_str();
             // textItem.text.clear();

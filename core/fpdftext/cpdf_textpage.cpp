@@ -946,6 +946,10 @@ void CPDF_TextPage::ProcessTextObject(PDFTEXT_Obj Obj) {
   CPDF_Font* pFont = pTextObj->GetFont();
   CFX_Matrix matrix = pTextObj->GetTextMatrix() * formMatrix;
 
+  if (m_bNeedTransformClipPath && pTextObj->m_ClipPath.HasRef()) {
+        pTextObj->m_ClipPath.Transform(formMatrix);
+  }
+
   FPDFText_MarkedContent ePreMKC = PreMarkedContent(Obj);
   if (ePreMKC == FPDFText_MarkedContent::Done) {
     m_pPreTextObj = pTextObj;

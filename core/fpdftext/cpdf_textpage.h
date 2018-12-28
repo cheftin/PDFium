@@ -108,6 +108,7 @@ class CPDF_TextPage {
 
   int CountRects(int start, int nCount);
   bool GetRect(int rectIndex, CFX_FloatRect* pRect) const;
+  void setNeedTransformClipPath(bool need) {m_bNeedTransformClipPath = need;}
 
  private:
   enum class TextOrientation {
@@ -170,6 +171,7 @@ class CPDF_TextPage {
   std::vector<PDFTEXT_Obj> m_LineObj;
   TextOrientation m_TextlineDir = TextOrientation::Unknown;
   CFX_FloatRect m_CurlineRect;
+  bool m_bNeedTransformClipPath = false;
 };
 
 #endif  // CORE_FPDFTEXT_CPDF_TEXTPAGE_H_

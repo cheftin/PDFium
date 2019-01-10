@@ -107,6 +107,10 @@ TEST_F(FPDFViewEmbedderTest, LinearizedDocument) {
   EXPECT_EQ(16, version);
 }
 
+TEST_F(FPDFViewEmbedderTest, LoadCustomDocumentWithoutFileAccess) {
+  EXPECT_FALSE(FPDF_LoadCustomDocument(nullptr, ""));
+}
+
 TEST_F(FPDFViewEmbedderTest, Page) {
   EXPECT_TRUE(OpenDocument("about_blank.pdf"));
   FPDF_PAGE page = LoadPage(0);
@@ -667,4 +671,40 @@ TEST_F(FPDFViewEmbedderTest, UnSupportedOperations_LoadDocument) {
   EXPECT_EQ(FPDF_UNSP_DOC_PORTABLECOLLECTION, delegate.type_);
   FPDF_CloseDocument(doc);
   SetDelegate(nullptr);
+}
+
+TEST_F(FPDFViewEmbedderTest, DocumentHasValidCrossReferenceTable) {
+  ASSERT_TRUE(OpenDocument("hello_world.pdf"));
+  EXPECT_TRUE(FPDF_DocumentHasValidCrossReferenceTable(document()));
+}
+
+TEST_F(FPDFViewEmbedderTest, DocumentHasInvalidCrossReferenceTable) {
+  EXPECT_FALSE(FPDF_DocumentHasValidCrossReferenceTable(nullptr));
+
+  ASSERT_TRUE(OpenDocument("bug_664284.pdf"));
+  EXPECT_FALSE(FPDF_DocumentHasValidCrossReferenceTable(document()));
+}
+
+// Related to https://crbug.com/pdfium/1197
+TEST_F(FPDFViewEmbedderTest, LoadDocumentWithEmptyXRefConsistently) {
+  ASSERT_TRUE(OpenDocument("empty_xref.pdf"));
+  EXPECT_TRUE(FPDF_DocumentHasValidCrossReferenceTable(document()));
+
+  std::string file_path;
+  ASSERT_TRUE(PathService::GetTestFilePath("empty_xref.pdf", &file_path));
+  {
+    ScopedFPDFDocument doc(FPDF_LoadDocument(file_path.c_str(), ""));
+    ASSERT_TRUE(doc);
+    EXPECT_TRUE(FPDF_DocumentHasValidCrossReferenceTable(doc.get()));
+  }
+  {
+    size_t file_length = 0;
+    std::unique_ptr<char, pdfium::FreeDeleter> file_contents =
+        GetFileContents(file_path.c_str(), &file_length);
+    ASSERT(file_contents);
+    ScopedFPDFDocument doc(
+        FPDF_LoadMemDocument(file_contents.get(), file_length, ""));
+    ASSERT_TRUE(doc);
+    EXPECT_TRUE(FPDF_DocumentHasValidCrossReferenceTable(doc.get()));
+  }
 }

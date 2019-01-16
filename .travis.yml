@@ -13,9 +13,6 @@ before_install:
     - if [ `uname` = "Linux" ]; then
         sudo apt-get update -qq -y;
         sudo apt-get install curl python perl -y;
-      elif [ `uname` = "Darwin" ]; then
-        brew update;
-        brew install python@2;
       fi
 
 script:

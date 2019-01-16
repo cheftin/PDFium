@@ -664,3 +664,21 @@ FPDF_GetPageBitmap(FPDF_PAGE page, FPDF_PNG_ENCODING& png_encoding, double scale
 //         return NULL;
 //     }
 // }
+
+FPDF_EXPORT bool FPDF_CALLCONV
+FPDF_ExtractFont(FPDF_DOCUMENT document, FPDF_STRING font_name, FPDF_STRING save_path)
+{
+    CPDF_Document* pDoc = CPDFDocumentFromFPDFDocument(document);
+    CPDF_Font* font = CPDF_Font::GetStockFont(pDoc, font_name);
+    if(!font) {
+        return false;
+    }
+    pdfium::span<uint8_t> data = font->GetFont()->GetFontSpan();
+
+    std::ofstream file_stream;
+    file_stream.open(save_path, std::ios::trunc);
+    file_stream.write((const char*)data.data(), data.size());
+    file_stream.close();
+
+    return true;
+}

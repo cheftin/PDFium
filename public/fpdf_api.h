@@ -189,7 +189,7 @@ class BufferFileWrite : public FPDF_FILEWRITE {
   private:
     int DoWriteBlock(const void* data, unsigned long size);
     static int WriteBlockImpl(FPDF_FILEWRITE* this_file_write, const void* data, unsigned long size);
-    
+
     std::ofstream _file;
 };
 
@@ -210,6 +210,9 @@ FPDF_SavePageBitmap(FPDF_PAGE page, FPDF_STRING path, double scaleX, double scal
 
 FPDF_EXPORT bool FPDF_CALLCONV
 FPDF_GetPageBitmap(FPDF_PAGE page, FPDF_PNG_ENCODING& png_encoding, double scaleX, double scaleY);
+
+FPDF_EXPORT bool FPDF_CALLCONV
+FPDF_ExtractFont(FPDF_DOCUMENT document, FPDF_STRING font_name, FPDF_STRING save_path);
 
 #ifdef __cplusplus
 }

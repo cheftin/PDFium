@@ -10,66 +10,74 @@
 
 namespace {
 
-// Format of uint32_t values in kTextLayoutCodeProperties[].
-constexpr uint32_t kBreakTypeBitPos = 0;
-constexpr uint32_t kBreakTypeBitCount = 6;
-constexpr uint32_t kBreakTypeBitMask =
-    (((1u << kBreakTypeBitCount) - 1) << kBreakTypeBitPos);
-
-constexpr uint32_t kBidiClassBitPos = 6;
-constexpr uint32_t kBidiClassBitCount = 5;
-constexpr uint32_t kBidiClassBitMask =
+// Format of uint16_t values in kTextLayoutCodeProperties[].
+constexpr uint16_t kBidiClassBitPos = 0;
+constexpr uint16_t kBidiClassBitCount = 5;
+constexpr uint16_t kBidiClassBitMask =
     (((1u << kBidiClassBitCount) - 1) << kBidiClassBitPos);
 
-constexpr uint32_t kCharTypeBitPos = 11;
-constexpr uint32_t kCharTypeBitCount = 4;
-constexpr uint32_t kCharTypeBitMask =
-    (((1u << kCharTypeBitCount) - 1) << kCharTypeBitPos);
-
-// TODO(tsepez): Unknown, possibly unused field.
-constexpr uint32_t kField2BitPos = 15;
-constexpr uint32_t kField2BitCount = 8;
-constexpr uint32_t kField2BitMask =
-    (((1 << kField2BitCount) - 1) << kField2BitPos);
-
-constexpr uint32_t kMirrorBitPos = 23;
-constexpr uint32_t kMirrorBitCount = 9;
-constexpr uint32_t kMirrorBitMask =
-    (((1 << kMirrorBitCount) - 1) << kMirrorBitPos);
+constexpr uint16_t kMirrorBitPos = 5;
+constexpr uint16_t kMirrorBitCount = 9;
+constexpr uint16_t kMirrorMax = (1 << kMirrorBitCount) - 1;
 
 #undef CHARPROP____
-#define CHARPROP____(mirror, f2, ct, bd, bt)                     \
-  ((mirror << kMirrorBitPos) | (f2 << kField2BitPos) |           \
-   (static_cast<uint32_t>(FX_CHARTYPE::ct) << kCharTypeBitPos) | \
-   (bd << kBidiClassBitPos) |                                    \
-   (static_cast<uint32_t>(FX_BREAKPROPERTY::bt) << kBreakTypeBitPos))
-
-const uint32_t kTextLayoutCodeProperties[] = {
+#define CHARPROP____(mirror, ct, bd, bt) \
+  ((mirror << kMirrorBitPos) |           \
+   (static_cast<uint16_t>(FX_BIDICLASS::bd) << kBidiClassBitPos)),
+constexpr uint16_t kTextLayoutCodeProperties[] = {
 #include "core/fxcrt/fx_ucddata.inc"
 };
 #undef CHARPROP____
 
-const size_t kTextLayoutCodePropertiesSize =
+constexpr size_t kTextLayoutCodePropertiesSize =
     FX_ArraySize(kTextLayoutCodeProperties);
 
 static_assert(kTextLayoutCodePropertiesSize == 65536, "missing characters");
 
-static_assert((kBreakTypeBitMask | kBidiClassBitMask | kCharTypeBitMask |
-               kField2BitMask | kMirrorBitMask) == 0xffffffff,
-              "missing bits in mask");
+uint16_t GetUnicodeProperties(wchar_t wch) {
+  size_t idx = static_cast<size_t>(wch);
+  if (idx < kTextLayoutCodePropertiesSize)
+    return kTextLayoutCodeProperties[idx];
+  return 0;
+}
 
-static_assert((kBreakTypeBitMask & kBidiClassBitMask) == 0, "overlapping bits");
-static_assert((kBreakTypeBitMask & kCharTypeBitMask) == 0, "overlapping bits");
-static_assert((kBreakTypeBitMask & kField2BitMask) == 0, "overlapping bits");
-static_assert((kBreakTypeBitMask & kMirrorBitMask) == 0, "overlapping bits");
-static_assert((kBidiClassBitMask & kCharTypeBitMask) == 0, "overlapping bits");
-static_assert((kBidiClassBitMask & kField2BitMask) == 0, "overlapping bits");
-static_assert((kBidiClassBitMask & kMirrorBitMask) == 0, "overlapping bits");
-static_assert((kCharTypeBitMask & kField2BitMask) == 0, "overlapping bits");
-static_assert((kCharTypeBitMask & kMirrorBitMask) == 0, "overlapping bits");
-static_assert((kField2BitMask & kMirrorBitMask) == 0, "overlapping bits");
+#ifdef PDF_ENABLE_XFA
+// Format of uint16_t values in kExtendedTextLayoutCodeProperties[].
+constexpr uint16_t kBreakTypeBitPos = 0;
+constexpr uint16_t kBreakTypeBitCount = 6;
+constexpr uint16_t kBreakTypeBitMask =
+    (((1u << kBreakTypeBitCount) - 1) << kBreakTypeBitPos);
 
-const uint16_t kFXTextLayoutBidiMirror[] = {
+constexpr uint16_t kCharTypeBitPos = 6;
+constexpr uint16_t kCharTypeBitCount = 4;
+constexpr uint16_t kCharTypeBitMask =
+    (((1u << kCharTypeBitCount) - 1) << kCharTypeBitPos);
+
+#undef CHARPROP____
+#define CHARPROP____(mirror, ct, bd, bt)                         \
+  ((static_cast<uint16_t>(FX_CHARTYPE::ct) << kCharTypeBitPos) | \
+   (static_cast<uint16_t>(FX_BREAKPROPERTY::bt) << kBreakTypeBitPos)),
+constexpr uint16_t kExtendedTextLayoutCodeProperties[] = {
+#include "core/fxcrt/fx_ucddata.inc"
+};
+#undef CHARPROP____
+
+constexpr size_t kExtendedTextLayoutCodePropertiesSize =
+    FX_ArraySize(kExtendedTextLayoutCodeProperties);
+
+static_assert(kExtendedTextLayoutCodePropertiesSize == 65536,
+              "missing characters");
+
+uint16_t GetExtendedUnicodeProperties(wchar_t wch) {
+  size_t idx = static_cast<size_t>(wch);
+  if (idx < kExtendedTextLayoutCodePropertiesSize)
+    return kExtendedTextLayoutCodeProperties[idx];
+  return 0;
+}
+
+#endif  // PDF_ENBABLE_XFA
+
+constexpr uint16_t kFXTextLayoutBidiMirror[] = {
     0x0029, 0x0028, 0x003E, 0x003C, 0x005D, 0x005B, 0x007D, 0x007B, 0x00BB,
     0x00AB, 0x0F3B, 0x0F3A, 0x0F3D, 0x0F3C, 0x169C, 0x169B, 0x2019, 0x2018,
     0x201D, 0x201C, 0x203A, 0x2039, 0x2046, 0x2045, 0x207E, 0x207D, 0x208E,
@@ -110,63 +118,50 @@ const uint16_t kFXTextLayoutBidiMirror[] = {
     0x300C, 0x300F, 0x300E, 0x3011, 0x3010, 0x3015, 0x3014, 0x3017, 0x3016,
     0x3019, 0x3018, 0x301B, 0x301A, 0xFE5A, 0xFE59, 0xFE5C, 0xFE5B, 0xFE5E,
     0xFE5D, 0xFE65, 0xFE64, 0xFF09, 0xFF08, 0xFF1E, 0xFF1C, 0xFF3D, 0xFF3B,
-    0xFF5D, 0xFF5B, 0xFF60, 0xFF5F, 0xFF63, 0xFF62, 0xFFFF, 0xFEFF, 0xFEFF,
-    0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF,
-    0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF,
-    0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF,
-    0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF,
-    0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF,
-    0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF,
-    0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF,
-    0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF,
-    0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF,
-    0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF,
-    0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF,
-    0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF,
-    0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF,
-    0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF,
-    0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF,
-    0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF, 0xFEFF,
+    0xFF5D, 0xFF5B, 0xFF60, 0xFF5F, 0xFF63, 0xFF62,
 };
 
-const size_t kFXTextLayoutBidiMirrorSize =
+constexpr size_t kFXTextLayoutBidiMirrorSize =
     FX_ArraySize(kFXTextLayoutBidiMirror);
 
-wchar_t GetMirrorChar(wchar_t wch, uint32_t dwProps) {
-  uint32_t dwTemp = (dwProps & kMirrorBitMask);
-  if (dwTemp == kMirrorBitMask)
-    return wch;
-  size_t idx = dwTemp >> kMirrorBitPos;
-  return idx < kFXTextLayoutBidiMirrorSize ? kFXTextLayoutBidiMirror[idx] : wch;
-}
+// Check that the mirror indicies in the fx_ucddata.inc table are in bounds.
+#undef CHARPROP____
+#define CHARPROP____(mirror, ct, bd, bt)                                      \
+  static_assert(mirror == kMirrorMax || mirror < kFXTextLayoutBidiMirrorSize, \
+                "Bad mirror index");
+#include "core/fxcrt/fx_ucddata.inc"
+#undef CHARPROP____
 
 }  // namespace
 
-uint32_t FX_GetUnicodeProperties(wchar_t wch) {
-  size_t idx = static_cast<size_t>(wch);
-  if (idx < kTextLayoutCodePropertiesSize)
-    return kTextLayoutCodeProperties[idx];
-  return 0;
+wchar_t FX_GetMirrorChar(wchar_t wch) {
+  uint16_t prop = GetUnicodeProperties(wch);
+  size_t idx = prop >> kMirrorBitPos;
+  if (idx == kMirrorMax)
+    return wch;
+  ASSERT(idx < kFXTextLayoutBidiMirrorSize);
+  return kFXTextLayoutBidiMirror[idx];
 }
 
-wchar_t FX_GetMirrorChar(wchar_t wch) {
-  return GetMirrorChar(wch, FX_GetUnicodeProperties(wch));
+FX_BIDICLASS FX_GetBidiClass(wchar_t wch) {
+  uint16_t prop = GetUnicodeProperties(wch);
+  uint16_t result = (prop & kBidiClassBitMask) >> kBidiClassBitPos;
+  ASSERT(result <= static_cast<uint16_t>(FX_BIDICLASS::kPDF));
+  return static_cast<FX_BIDICLASS>(result);
 }
 
 #ifdef PDF_ENABLE_XFA
-FX_CHARTYPE GetCharTypeFromProp(uint32_t prop) {
-  uint32_t result = (prop & kCharTypeBitMask) >> kCharTypeBitPos;
-  ASSERT(result <= static_cast<uint32_t>(FX_CHARTYPE::kArabic));
+FX_CHARTYPE FX_GetCharType(wchar_t wch) {
+  uint16_t prop = GetExtendedUnicodeProperties(wch);
+  uint16_t result = (prop & kCharTypeBitMask) >> kCharTypeBitPos;
+  ASSERT(result <= static_cast<uint16_t>(FX_CHARTYPE::kArabic));
   return static_cast<FX_CHARTYPE>(result);
 }
 
-FX_BREAKPROPERTY GetBreakPropertyFromProp(uint32_t prop) {
-  uint32_t result = (prop & kBreakTypeBitMask) >> kBreakTypeBitPos;
-  ASSERT(result <= static_cast<uint32_t>(FX_BREAKPROPERTY::kTB));
+FX_BREAKPROPERTY FX_GetBreakProperty(wchar_t wch) {
+  uint16_t prop = GetExtendedUnicodeProperties(wch);
+  uint16_t result = (prop & kBreakTypeBitMask) >> kBreakTypeBitPos;
+  ASSERT(result <= static_cast<uint16_t>(FX_BREAKPROPERTY::kTB));
   return static_cast<FX_BREAKPROPERTY>(result);
-}
-
-wchar_t FX_GetMirrorChar(wchar_t wch, uint32_t dwProps) {
-  return GetMirrorChar(wch, dwProps);
 }
 #endif  // PDF_ENABLE_XFA

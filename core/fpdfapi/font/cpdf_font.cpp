@@ -345,14 +345,13 @@ bool CPDF_Font::IsStandardFont() const {
   return AsType1Font()->IsBase14Font();
 }
 
+// static
 const char* CPDF_Font::GetAdobeCharName(
     int iBaseEncoding,
     const std::vector<ByteString>& charnames,
-    int charcode) {
-  if (charcode < 0 || charcode >= 256) {
-    NOTREACHED();
+    uint32_t charcode) {
+  if (charcode >= 256)
     return nullptr;
-  }
 
   if (!charnames.empty() && !charnames[charcode].IsEmpty())
     return charnames[charcode].c_str();
@@ -360,7 +359,11 @@ const char* CPDF_Font::GetAdobeCharName(
   const char* name = nullptr;
   if (iBaseEncoding)
     name = PDF_CharNameFromPredefinedCharSet(iBaseEncoding, charcode);
-  return name && name[0] ? name : nullptr;
+  if (!name)
+    return nullptr;
+
+  ASSERT(name[0]);
+  return name;
 }
 
 uint32_t CPDF_Font::FallbackFontFromCharcode(uint32_t charcode) {

@@ -16,7 +16,6 @@
 #include "xfa/fwl/cfwl_combobox.h"
 #include "xfa/fwl/cfwl_event.h"
 #include "xfa/fwl/cfwl_eventmouse.h"
-#include "xfa/fwl/cfwl_form.h"
 #include "xfa/fwl/cfwl_messagekey.h"
 #include "xfa/fwl/cfwl_messagekillfocus.h"
 #include "xfa/fwl/cfwl_messagemouse.h"
@@ -135,10 +134,10 @@ void CFWL_Widget::SetStates(uint32_t dwStates) {
   if (IsVisible())
     return;
 
-  CFWL_NoteDriver* noteDriver =
-      static_cast<CFWL_NoteDriver*>(GetOwnerApp()->GetNoteDriver());
-  CFWL_WidgetMgr* widgetMgr = GetOwnerApp()->GetWidgetMgr();
+  CFWL_NoteDriver* noteDriver = GetOwnerApp()->GetNoteDriver();
   noteDriver->NotifyTargetHide(this);
+
+  CFWL_WidgetMgr* widgetMgr = GetOwnerApp()->GetWidgetMgr();
   CFWL_Widget* child = widgetMgr->GetFirstChildWidget(this);
   while (child) {
     noteDriver->NotifyTargetHide(child);
@@ -293,36 +292,17 @@ void CFWL_Widget::CalcTextRect(const WideString& wsText,
 }
 
 void CFWL_Widget::SetGrab(bool bSet) {
-  const CFWL_App* pApp = GetOwnerApp();
-  if (!pApp)
-    return;
-
-  CFWL_NoteDriver* pDriver =
-      static_cast<CFWL_NoteDriver*>(pApp->GetNoteDriver());
+  CFWL_NoteDriver* pDriver = GetOwnerApp()->GetNoteDriver();
   pDriver->SetGrab(this, bSet);
 }
 
 void CFWL_Widget::RegisterEventTarget(CFWL_Widget* pEventSource) {
-  const CFWL_App* pApp = GetOwnerApp();
-  if (!pApp)
-    return;
-
-  CFWL_NoteDriver* pNoteDriver = pApp->GetNoteDriver();
-  if (!pNoteDriver)
-    return;
-
+  CFWL_NoteDriver* pNoteDriver = GetOwnerApp()->GetNoteDriver();
   pNoteDriver->RegisterEventTarget(this, pEventSource);
 }
 
 void CFWL_Widget::UnregisterEventTarget() {
-  const CFWL_App* pApp = GetOwnerApp();
-  if (!pApp)
-    return;
-
-  CFWL_NoteDriver* pNoteDriver = pApp->GetNoteDriver();
-  if (!pNoteDriver)
-    return;
-
+  CFWL_NoteDriver* pNoteDriver = GetOwnerApp()->GetNoteDriver();
   pNoteDriver->UnregisterEventTarget(this);
 }
 
@@ -331,13 +311,7 @@ void CFWL_Widget::DispatchEvent(CFWL_Event* pEvent) {
     m_pOuter->GetDelegate()->OnProcessEvent(pEvent);
     return;
   }
-  const CFWL_App* pApp = GetOwnerApp();
-  if (!pApp)
-    return;
-
-  CFWL_NoteDriver* pNoteDriver = pApp->GetNoteDriver();
-  if (!pNoteDriver)
-    return;
+  CFWL_NoteDriver* pNoteDriver = GetOwnerApp()->GetNoteDriver();
   pNoteDriver->SendEvent(pEvent);
 }
 
@@ -373,15 +347,7 @@ void CFWL_Widget::DrawBorder(CXFA_Graphics* pGraphics,
 }
 
 void CFWL_Widget::NotifyDriver() {
-  const CFWL_App* pApp = GetOwnerApp();
-  if (!pApp)
-    return;
-
-  CFWL_NoteDriver* pDriver =
-      static_cast<CFWL_NoteDriver*>(pApp->GetNoteDriver());
-  if (!pDriver)
-    return;
-
+  CFWL_NoteDriver* pDriver = GetOwnerApp()->GetNoteDriver();
   pDriver->NotifyTargetDestroy(this);
 }
 
@@ -390,9 +356,6 @@ CFX_SizeF CFWL_Widget::GetOffsetFromParent(CFWL_Widget* pParent) {
     return CFX_SizeF();
 
   CFWL_WidgetMgr* pWidgetMgr = GetOwnerApp()->GetWidgetMgr();
-  if (!pWidgetMgr)
-    return CFX_SizeF();
-
   CFX_SizeF szRet(m_pProperties->m_rtWidget.left,
                   m_pProperties->m_rtWidget.top);
 

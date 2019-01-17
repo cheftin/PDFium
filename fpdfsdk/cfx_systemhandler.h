@@ -12,8 +12,6 @@
 #include "core/fxcrt/fx_system.h"
 #include "core/fxcrt/unowned_ptr.h"
 
-using TimerCallback = void (*)(int32_t idEvent);
-
 class CFFL_FormFiller;
 class CPDF_Document;
 class CPDF_Font;
@@ -22,6 +20,9 @@ class CPDFSDK_Widget;
 
 class CFX_SystemHandler {
  public:
+  static constexpr int32_t kInvalidTimerID = 0;
+  using TimerCallback = void (*)(int32_t idEvent);
+
   explicit CFX_SystemHandler(CPDFSDK_FormFillEnvironment* pFormFillEnv);
   ~CFX_SystemHandler();
 

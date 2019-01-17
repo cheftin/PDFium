@@ -9,6 +9,34 @@
 
 #include "core/fxcrt/fx_system.h"
 
+// NOTE: Order matters, less-than/greater-than comparisons are used.
+enum class FX_BIDICLASS : uint8_t {
+  kON = 0,    // Other Neutral
+  kL = 1,     // Left Letter
+  kR = 2,     // Right Letter
+  kAN = 3,    // Arabic Number
+  kEN = 4,    // European Number
+  kAL = 5,    // Arabic Letter
+  kNSM = 6,   // Non-spacing Mark
+  kCS = 7,    // Common Number Separator
+  kES = 8,    // European Separator
+  kET = 9,    // European Number Terminator
+  kBN = 10,   // Boundary Neutral
+  kS = 11,    // Segment Separator
+  kWS = 12,   // Whitespace
+  kB = 13,    // Paragraph Separator
+  kRLO = 14,  // Right-to-Left Override
+  kRLE = 15,  // Right-to-Left Embedding
+  kLRO = 16,  // Left-to-Right Override
+  kLRE = 17,  // Left-to-Right Embedding
+  kPDF = 18,  // Pop Directional Format
+  kN = kON,
+};
+
+wchar_t FX_GetMirrorChar(wchar_t wch);
+FX_BIDICLASS FX_GetBidiClass(wchar_t wch);
+
+#ifdef PDF_ENABLE_XFA
 // As defined in http://www.unicode.org/reports/tr14
 enum class FX_BREAKPROPERTY : uint8_t {
   kOP = 0,
@@ -67,19 +95,11 @@ enum class FX_CHARTYPE : uint8_t {
   kArabic,
 };
 
-uint32_t FX_GetUnicodeProperties(wchar_t wch);
-wchar_t FX_GetMirrorChar(wchar_t wch);
-
-#ifdef PDF_ENABLE_XFA
-
-FX_CHARTYPE GetCharTypeFromProp(uint32_t prop);
+FX_CHARTYPE FX_GetCharType(wchar_t wch);
 
 // Analagous to ULineBreak in icu's uchar.h, but permuted order, and a
 // subset lacking some more recent additions.
-FX_BREAKPROPERTY GetBreakPropertyFromProp(uint32_t prop);
-
-wchar_t FX_GetMirrorChar(wchar_t wch, uint32_t dwProps);
-
+FX_BREAKPROPERTY FX_GetBreakProperty(wchar_t wch);
 #endif  // PDF_ENABLE_XFA
 
 #endif  // CORE_FXCRT_FX_UNICODE_H_

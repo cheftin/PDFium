@@ -173,3 +173,39 @@ TEST_F(CFWLEditEmbedderTest, DISABLED_FillWithNewLineWithMultiline) {
     CompareBitmap(page_bitmap.get(), 612, 792, kMultilineBackspaceMD5);
   }
 }
+
+TEST_F(CFWLEditEmbedderTest, DateTimePickerTest) {
+  CreateAndInitializeFormPDF("xfa/xfa_date_time_edit.pdf");
+  FORM_OnLButtonDown(form_handle(), page(), 0, 115, 58);
+
+  const char kFilledMD5[] = "1036b8837a9dba75c6bd8f9347ae2eb2";
+  {
+    ScopedFPDFBitmap page_bitmap =
+        RenderPageWithFlags(page(), form_handle(), FPDF_ANNOT);
+    CompareBitmap(page_bitmap.get(), 612, 792, kFilledMD5);
+  }
+}
+
+TEST_F(CFWLEditEmbedderTest, ImageEditTest) {
+  CreateAndInitializeFormPDF("xfa/xfa_image_edit.pdf");
+  FORM_OnLButtonDown(form_handle(), page(), 0, 115, 58);
+
+  const char kFilledMD5[] = "1940568c9ba33bac5d0b1ee9558c76b3";
+  {
+    ScopedFPDFBitmap page_bitmap =
+        RenderPageWithFlags(page(), form_handle(), FPDF_ANNOT);
+    CompareBitmap(page_bitmap.get(), 612, 792, kFilledMD5);
+  }
+}
+
+TEST_F(CFWLEditEmbedderTest, ComboBoxTest) {
+  CreateAndInitializeFormPDF("xfa/xfa_combobox.pdf");
+  FORM_OnLButtonDown(form_handle(), page(), 0, 115, 58);
+
+  const char kFilledMD5[] = "dad642ae8a5afce2591ffbcabbfc58dd";
+  {
+    ScopedFPDFBitmap page_bitmap =
+        RenderPageWithFlags(page(), form_handle(), FPDF_ANNOT);
+    CompareBitmap(page_bitmap.get(), 612, 792, kFilledMD5);
+  }
+}

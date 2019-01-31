@@ -214,6 +214,8 @@ FPDF_GetPageBitmap(FPDF_PAGE page, FPDF_PNG_ENCODING& png_encoding, double scale
 FPDF_EXPORT bool FPDF_CALLCONV
 FPDF_ExtractFont(FPDF_DOCUMENT document, FPDF_STRING font_name, FPDF_STRING save_path);
 
+FPDF_EXPORT uint8_t* FPDF_CALLCONV
+FPDF_ExtractPageContents(FPDF_DOCUMENT document, int page_index, uint32_t& length);
 #ifdef __cplusplus
 }
 #endif

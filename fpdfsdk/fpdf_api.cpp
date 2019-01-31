@@ -29,6 +29,11 @@
 #include "fpdfsdk/cpdfsdk_helpers.h"
 #include "fpdfsdk/cpdfsdk_pageview.h"
 #include "testing/image_diff/image_diff_png.h"
+#include "core/fpdfapi/parser/cpdf_dictionary.h"
+#include "core/fpdfapi/parser/cpdf_reference.h"
+#include "core/fpdfapi/parser/cpdf_document.h"
+#include "core/fpdfapi/parser/cpdf_array.h"
+#include "constants/page_object.h"
 
 FPDF_EXPORT _FPDF_PNG_ENCODING_::_FPDF_PNG_ENCODING_() = default;
 FPDF_EXPORT _FPDF_PNG_ENCODING_::~_FPDF_PNG_ENCODING_() = default;
@@ -681,4 +686,38 @@ FPDF_ExtractFont(FPDF_DOCUMENT document, FPDF_STRING font_name, FPDF_STRING save
     file_stream.close();
 
     return true;
+}
+
+FPDF_EXPORT uint8_t* FPDF_CALLCONV
+FPDF_ExtractPageContents(FPDF_DOCUMENT document, int page_index, uint32_t& length)
+{
+    CPDF_Document* pDoc = CPDFDocumentFromFPDFDocument(document);
+    if (nullptr == pDoc)
+        return nullptr;
+    const CPDF_Dictionary* pPageDict = pDoc->GetPageDictionary(page_index);
+    if (nullptr == pPageDict)
+        return nullptr;
+
+    const CPDF_Stream* stream = nullptr;
+    const CPDF_Object* pObj = pPageDict->GetObjectFor(pdfium::page_object::kContents);
+    if (nullptr == pObj)
+        return nullptr;
+    if (pObj->IsReference()) {
+        stream = pPageDict->GetStreamFor(pdfium::page_object::kContents);
+    } else if (pObj->IsArray()) {
+        CPDF_Array* pArrayObj = static_cast<CPDF_Array*>(const_cast<CPDF_Object*>(pObj));
+        stream = pArrayObj->GetStreamAt(0);
+    }
+    if (nullptr == stream)
+        return nullptr;
+
+    // extract data
+    length = stream->GetRawSize();
+    uint8_t* data = new uint8_t[length];
+    if (!stream->ReadRawData(0, data, length)) {
+        delete [] data;
+        return nullptr;
+    }
+
+    return data;
 }

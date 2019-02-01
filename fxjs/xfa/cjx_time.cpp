@@ -8,9 +8,13 @@
 
 #include "xfa/fxfa/parser/cxfa_time.h"
 
-CJX_Time::CJX_Time(CXFA_Time* node) : CJX_Content(node) {}
+CJX_Time::CJX_Time(CXFA_Time* node) : CJX_Object(node) {}
 
 CJX_Time::~CJX_Time() = default;
+
+bool CJX_Time::DynamicTypeIs(TypeTag eType) const {
+  return eType == static_type__ || ParentType__::DynamicTypeIs(eType);
+}
 
 void CJX_Time::defaultValue(CFXJSE_Value* pValue,
                             bool bSetting,

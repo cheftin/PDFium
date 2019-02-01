@@ -8,9 +8,13 @@
 
 #include "xfa/fxfa/parser/cxfa_decimal.h"
 
-CJX_Decimal::CJX_Decimal(CXFA_Decimal* node) : CJX_Content(node) {}
+CJX_Decimal::CJX_Decimal(CXFA_Decimal* node) : CJX_Object(node) {}
 
 CJX_Decimal::~CJX_Decimal() = default;
+
+bool CJX_Decimal::DynamicTypeIs(TypeTag eType) const {
+  return eType == static_type__ || ParentType__::DynamicTypeIs(eType);
+}
 
 void CJX_Decimal::defaultValue(CFXJSE_Value* pValue,
                                bool bSetting,

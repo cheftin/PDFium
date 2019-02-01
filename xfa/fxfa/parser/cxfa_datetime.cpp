@@ -16,7 +16,7 @@ const CXFA_Node::AttributeData kDateTimeAttributeData[] = {
     {XFA_Attribute::Name, XFA_AttributeType::CData, nullptr},
     {XFA_Attribute::Use, XFA_AttributeType::CData, nullptr},
     {XFA_Attribute::Usehref, XFA_AttributeType::CData, nullptr},
-    {XFA_Attribute::Unknown, XFA_AttributeType::Integer, nullptr}};
+};
 
 }  // namespace
 
@@ -26,7 +26,7 @@ CXFA_DateTime::CXFA_DateTime(CXFA_Document* doc, XFA_PacketType packet)
                 (XFA_XDPPACKET_Template | XFA_XDPPACKET_Form),
                 XFA_ObjectType::ContentNode,
                 XFA_Element::DateTime,
-                nullptr,
+                {},
                 kDateTimeAttributeData,
                 pdfium::MakeUnique<CJX_DateTime>(this)) {}
 

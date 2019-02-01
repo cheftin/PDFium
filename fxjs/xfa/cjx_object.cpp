@@ -73,11 +73,6 @@ void* GetMapKey_Element(XFA_Element eType, XFA_Attribute eAttribute) {
                             XFA_KEYTYPE_Element);
 }
 
-void XFA_DefaultFreeData(void* pData) {}
-
-const XFA_MAPDATABLOCKCALLBACKINFO gs_XFADefaultFreeData = {XFA_DefaultFreeData,
-                                                            nullptr};
-
 std::tuple<int32_t, int32_t, int32_t> StrToRGB(const WideString& strRGB) {
   int32_t r = 0;
   int32_t g = 0;
@@ -130,6 +125,10 @@ CJX_Object::CJX_Object(CXFA_Object* obj) : object_(obj) {}
 
 CJX_Object::~CJX_Object() {
   ClearMapModuleBuffer();
+}
+
+bool CJX_Object::DynamicTypeIs(TypeTag eType) const {
+  return eType == static_type__;
 }
 
 void CJX_Object::DefineMethods(pdfium::span<const CJX_MethodSpec> methods) {
@@ -775,9 +774,7 @@ Optional<WideString> CJX_Object::TryContent(bool bScriptModify, bool bProto) {
   if (pNode) {
     if (bScriptModify) {
       CFXJSE_Engine* pScriptContext = GetDocument()->GetScriptContext();
-      if (pScriptContext)
-        GetDocument()->GetScriptContext()->AddNodesOfRunScript(
-            ToNode(GetXFAObject()));
+      pScriptContext->AddNodesOfRunScript(ToNode(GetXFAObject()));
     }
     return TryCData(XFA_Attribute::Value, false);
   }
@@ -872,8 +869,8 @@ void CJX_Object::SetUserData(
     void* pKey,
     void* pData,
     const XFA_MAPDATABLOCKCALLBACKINFO* pCallbackInfo) {
-  SetMapModuleBuffer(pKey, &pData, sizeof(void*),
-                     pCallbackInfo ? pCallbackInfo : &gs_XFADefaultFreeData);
+  ASSERT(pCallbackInfo);
+  SetMapModuleBuffer(pKey, &pData, sizeof(void*), pCallbackInfo);
 }
 
 XFA_MAPMODULEDATA* CJX_Object::CreateMapModuleData() {
@@ -1309,6 +1306,9 @@ void CJX_Object::ScriptSomBorderWidth(CFXJSE_Value* pValue,
     return;
   }
 
+  if (pValue->IsEmpty())
+    return;
+
   WideString wsThickness = pValue->ToWideString();
   for (int32_t i = 0; i < border->CountEdges(); ++i) {
     CXFA_Edge* edge = border->GetEdgeIfExists(i);
@@ -1569,7 +1569,7 @@ void CJX_Object::ScriptSomInstanceIndex(CFXJSE_Value* pValue,
 
 void CJX_Object::ScriptSubformInstanceManager(CFXJSE_Value* pValue,
                                               bool bSetting,
-                                              XFA_AttributeValue eAttribute) {
+                                              XFA_Attribute eAttribute) {
   if (bSetting) {
     ThrowInvalidPropertyException();
     return;

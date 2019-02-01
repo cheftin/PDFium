@@ -18,7 +18,7 @@ const CXFA_Node::AttributeData kDataValueAttributeData[] = {
      (void*)XFA_AttributeValue::Data},
     {XFA_Attribute::Value, XFA_AttributeType::CData, nullptr},
     {XFA_Attribute::IsNull, XFA_AttributeType::Boolean, (void*)0},
-    {XFA_Attribute::Unknown, XFA_AttributeType::Integer, nullptr}};
+};
 
 }  // namespace
 
@@ -28,7 +28,7 @@ CXFA_DataValue::CXFA_DataValue(CXFA_Document* doc, XFA_PacketType packet)
                 XFA_XDPPACKET_Datasets,
                 XFA_ObjectType::Node,
                 XFA_Element::DataValue,
-                nullptr,
+                {},
                 kDataValueAttributeData,
                 pdfium::MakeUnique<CJX_DataValue>(this)) {}
 

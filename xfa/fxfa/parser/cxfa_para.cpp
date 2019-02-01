@@ -6,7 +6,7 @@
 
 #include "xfa/fxfa/parser/cxfa_para.h"
 
-#include "fxjs/xfa/cjx_para.h"
+#include "fxjs/xfa/cjx_node.h"
 #include "third_party/base/ptr_util.h"
 #include "xfa/fxfa/parser/cxfa_measurement.h"
 
@@ -14,7 +14,7 @@ namespace {
 
 const CXFA_Node::PropertyData kParaPropertyData[] = {
     {XFA_Element::Hyphenation, 1, 0},
-    {XFA_Element::Unknown, 0, 0}};
+};
 
 const CXFA_Node::AttributeData kParaAttributeData[] = {
     {XFA_Attribute::Id, XFA_AttributeType::CData, nullptr},
@@ -36,7 +36,7 @@ const CXFA_Node::AttributeData kParaAttributeData[] = {
     {XFA_Attribute::Usehref, XFA_AttributeType::CData, nullptr},
     {XFA_Attribute::LineHeight, XFA_AttributeType::Measure, (void*)L"0pt"},
     {XFA_Attribute::SpaceAbove, XFA_AttributeType::Measure, (void*)L"0in"},
-    {XFA_Attribute::Unknown, XFA_AttributeType::Integer, nullptr}};
+};
 
 }  // namespace
 
@@ -48,7 +48,7 @@ CXFA_Para::CXFA_Para(CXFA_Document* doc, XFA_PacketType packet)
                 XFA_Element::Para,
                 kParaPropertyData,
                 kParaAttributeData,
-                pdfium::MakeUnique<CJX_Para>(this)) {}
+                pdfium::MakeUnique<CJX_Node>(this)) {}
 
 CXFA_Para::~CXFA_Para() = default;
 

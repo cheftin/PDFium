@@ -835,32 +835,16 @@ CXFA_Node::CXFA_Node(CXFA_Document* pDoc,
                      uint32_t validPackets,
                      XFA_ObjectType oType,
                      XFA_Element eType,
-                     const PropertyData* properties,
-                     const AttributeData* attributes,
-                     std::unique_ptr<CJX_Object> js_node)
-    : CXFA_Object(pDoc, oType, eType, std::move(js_node)),
+                     pdfium::span<const PropertyData> properties,
+                     pdfium::span<const AttributeData> attributes,
+                     std::unique_ptr<CJX_Object> js_object)
+    : CXFA_Object(pDoc, oType, eType, std::move(js_object)),
       m_Properties(properties),
       m_Attributes(attributes),
       m_ValidPackets(validPackets),
       m_ePacket(ePacket) {
   ASSERT(m_pDocument);
 }
-
-CXFA_Node::CXFA_Node(CXFA_Document* pDoc,
-                     XFA_PacketType ePacket,
-                     uint32_t validPackets,
-                     XFA_ObjectType oType,
-                     XFA_Element eType,
-                     const PropertyData* properties,
-                     const AttributeData* attributes)
-    : CXFA_Node(pDoc,
-                ePacket,
-                validPackets,
-                oType,
-                eType,
-                properties,
-                attributes,
-                pdfium::MakeUnique<CJX_Node>(this)) {}
 
 CXFA_Node::~CXFA_Node() = default;
 
@@ -952,15 +936,10 @@ bool CXFA_Node::IsValidInPacket(XFA_PacketType packet) const {
 
 const CXFA_Node::PropertyData* CXFA_Node::GetPropertyData(
     XFA_Element property) const {
-  if (m_Properties == nullptr)
-    return nullptr;
-
-  for (size_t i = 0;; ++i) {
-    const PropertyData* data = m_Properties + i;
-    if (data->property == XFA_Element::Unknown)
-      break;
-    if (data->property == property)
-      return data;
+  ASSERT(property != XFA_Element::Unknown);
+  for (const auto& prop : m_Properties) {
+    if (prop.property == property)
+      return &prop;
   }
   return nullptr;
 }
@@ -980,30 +959,19 @@ uint8_t CXFA_Node::PropertyOccuranceCount(XFA_Element property) const {
 }
 
 Optional<XFA_Element> CXFA_Node::GetFirstPropertyWithFlag(uint8_t flag) {
-  if (m_Properties == nullptr)
-    return {};
-
-  for (size_t i = 0;; ++i) {
-    const PropertyData* data = m_Properties + i;
-    if (data->property == XFA_Element::Unknown)
-      break;
-    if (data->flags & flag)
-      return {data->property};
+  for (const auto& prop : m_Properties) {
+    if (prop.flags & flag)
+      return prop.property;
   }
   return {};
 }
 
 const CXFA_Node::AttributeData* CXFA_Node::GetAttributeData(
     XFA_Attribute attr) const {
-  if (m_Attributes == nullptr)
-    return nullptr;
-
-  for (size_t i = 0;; ++i) {
-    const AttributeData* cur_attr = &m_Attributes[i];
-    if (cur_attr->attribute == XFA_Attribute::Unknown)
-      break;
-    if (cur_attr->attribute == attr)
-      return cur_attr;
+  ASSERT(attr != XFA_Attribute::Unknown);
+  for (const auto& cur_attr : m_Attributes) {
+    if (cur_attr.attribute == attr)
+      return &cur_attr;
   }
   return nullptr;
 }
@@ -1012,11 +980,9 @@ bool CXFA_Node::HasAttribute(XFA_Attribute attr) const {
   return !!GetAttributeData(attr);
 }
 
-// Note: This Method assumes that i is a valid index ....
 XFA_Attribute CXFA_Node::GetAttribute(size_t i) const {
-  if (m_Attributes == nullptr)
-    return XFA_Attribute::Unknown;
-  return m_Attributes[i].attribute;
+  return i < m_Attributes.size() ? m_Attributes[i].attribute
+                                 : XFA_Attribute::Unknown;
 }
 
 XFA_AttributeType CXFA_Node::GetAttributeType(XFA_Attribute type) const {
@@ -1072,15 +1038,14 @@ std::vector<CXFA_Node*> CXFA_Node::GetNodeList(uint32_t dwTypeFilter,
 
   if (!bFilterOneOfProperties || !nodes.empty())
     return nodes;
-  if (m_Properties == nullptr)
-    return nodes;
 
   Optional<XFA_Element> property =
       GetFirstPropertyWithFlag(XFA_PROPERTYFLAG_DefaultOneOf);
-  if (!property)
+  if (!property.has_value())
     return nodes;
 
-  CXFA_Node* pNewNode = m_pDocument->CreateNode(GetPacketType(), *property);
+  CXFA_Node* pNewNode =
+      m_pDocument->CreateNode(GetPacketType(), property.value());
   if (pNewNode) {
     InsertChild(pNewNode, nullptr);
     pNewNode->SetFlagAndNotify(XFA_NodeFlag_Initialized);

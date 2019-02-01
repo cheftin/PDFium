@@ -157,6 +157,9 @@ class EmbedderTest : public ::testing::Test,
                                               FPDF_FORMHANDLE handle,
                                               int flags);
 
+  // Simplified form of RenderPageWithFlags() with no handle and no flags.
+  static ScopedFPDFBitmap RenderPage(FPDF_PAGE page);
+
  protected:
   using PageNumberToHandleMap = std::map<int, FPDF_PAGE>;
 
@@ -195,7 +198,8 @@ class EmbedderTest : public ::testing::Test,
                                 unsigned long size);
 
   // See comments in the respective non-Saved versions of these methods.
-  FPDF_DOCUMENT OpenSavedDocument(const char* password);
+  FPDF_DOCUMENT OpenSavedDocument();
+  FPDF_DOCUMENT OpenSavedDocumentWithPassword(const char* password);
   void CloseSavedDocument();
   FPDF_PAGE LoadSavedPage(int page_number);
   void CloseSavedPage(FPDF_PAGE page);

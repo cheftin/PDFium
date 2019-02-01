@@ -357,11 +357,11 @@ void CFWL_ListBox::DrawBkground(CXFA_Graphics* pGraphics,
   param.m_matrix.Concat(*pMatrix);
   param.m_rtPart = m_rtClient;
   if (IsShowScrollBar(false) && IsShowScrollBar(true))
-    param.m_pData = &m_rtStatic;
+    param.m_pRtData = &m_rtStatic;
   if (!IsEnabled())
     param.m_dwStates = CFWL_PartState_Disabled;
 
-  pTheme->DrawBackground(&param);
+  pTheme->DrawBackground(param);
 }
 
 void CFWL_ListBox::DrawItems(CXFA_Graphics* pGraphics,
@@ -424,14 +424,14 @@ void CFWL_ListBox::DrawItem(CXFA_Graphics* pGraphics,
   bg_param.m_rtPart = rtItem;
   bg_param.m_bMaximize = true;
   CFX_RectF rtFocus(rtItem);
-  bg_param.m_pData = &rtFocus;
+  bg_param.m_pRtData = &rtFocus;
   if (m_pVertScrollBar && !m_pHorzScrollBar &&
       (dwPartStates & CFWL_PartState_Focused)) {
     bg_param.m_rtPart.left += 1;
     bg_param.m_rtPart.width -= (m_fScorllBarWidth + 1);
     rtFocus.Deflate(0.5, 0.5, 1 + m_fScorllBarWidth, 1);
   }
-  pTheme->DrawBackground(&bg_param);
+  pTheme->DrawBackground(bg_param);
 
   if (!pItem)
     return;
@@ -454,7 +454,7 @@ void CFWL_ListBox::DrawItem(CXFA_Graphics* pGraphics,
   textParam.m_dwTTOStyles = m_TTOStyles;
   textParam.m_iTTOAlign = m_iTTOAligns;
   textParam.m_bMaximize = true;
-  pTheme->DrawText(&textParam);
+  pTheme->DrawText(textParam);
 }
 
 CFX_SizeF CFWL_ListBox::CalcSize(bool bAutoSize) {
@@ -468,7 +468,7 @@ CFX_SizeF CFWL_ListBox::CalcSize(bool bAutoSize) {
     CFWL_ThemePart part;
     part.m_pWidget = this;
     IFWL_ThemeProvider* theme = GetAvailableTheme();
-    CFX_RectF pUIMargin = theme ? theme->GetUIMargin(&part) : CFX_RectF();
+    CFX_RectF pUIMargin = theme ? theme->GetUIMargin(part) : CFX_RectF();
     m_rtConent.Deflate(pUIMargin.left, pUIMargin.top, pUIMargin.width,
                        pUIMargin.height);
   }
@@ -607,7 +607,7 @@ float CFWL_ListBox::CalcItemHeight() {
   IFWL_ThemeProvider* theme = GetAvailableTheme();
   CFWL_ThemePart part;
   part.m_pWidget = this;
-  return (theme ? theme->GetFontSize(&part) : 20.0f) + 2 * kItemTextMargin;
+  return (theme ? theme->GetFontSize(part) : 20.0f) + 2 * kItemTextMargin;
 }
 
 void CFWL_ListBox::InitVerticalScrollBar() {

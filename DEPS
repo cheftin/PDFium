@@ -7,8 +7,7 @@ vars = {
   # purposes.
   'checkout_configuration': 'default',
 
-  # TODO(dpranke): change to != "small" once != is supported.
-  'checkout_instrumented_libraries': 'checkout_linux and checkout_configuration == "default"',
+  'checkout_instrumented_libraries': 'checkout_linux and checkout_configuration != "small"',
 
   'chromium_git': 'https://chromium.googlesource.com',
   'pdfium_git': 'https://pdfium.googlesource.com',
@@ -24,7 +23,7 @@ vars = {
   'depot_tools_revision': 'ddbeac1c06a9c0ffa100f6f2af672af83f980fcb',
   'freetype_revision': '1e7a8f30c231bace001c617099e78f78743dd3b4',
   'gtest_revision': '879ac092fde0a19e1b3a61b2546b2a422b1528bc',
-  'icu_revision': '23de01679d298bf9fb964ebede32f2157729ba96',
+  'icu_revision': '07e7295d964399ee7bee16a3ac7ca5a053b2cf0a',
   'instrumented_lib_revision': 'a959e4f0cb643003f2d75d179cede449979e3e77',
   'jinja2_revision': '45571de473282bd1d8b63a8dfcb1fd268d0635d2',
   'jpeg_turbo_revision': '61a2bbaa9aec89cb2c882d87ace6aba9aee49bb9',
@@ -33,9 +32,9 @@ vars = {
   'skia_revision': '36b85be4944363139562664c964d6fde749babdb',
   'tools_memory_revision': 'f7b00daf4df7f6c469f5fbc68d7f40f6bd15d6e6',
   'trace_event_revision': '211b3ed9d0481b4caddbee1322321b86a483ca1f',
-  'v8_revision': 'ec2203e1fce49480868df0f85b395963be461d13',
+  'v8_revision': '817547547ebebdb1d53edddd745bf5f1c16f525d',
   'yasm_source_revision': '720b70524a4424b15fc57e82263568c8ba0496ad',
-  'zlib_revision': '2aafd9d335e4fd6fa0c74892252280a1bb51ce6f',
+  'zlib_revision': 'e080c76be8c127cd977e49d64246fd98e67b35e6',
 }
 
 deps = {

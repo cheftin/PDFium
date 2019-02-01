@@ -56,8 +56,62 @@ enum XFA_SOM_MESSAGETYPE {
 
 class CJX_Object {
  public:
+  // Corresponds 1:1 with CJX_ subclasses.
+  enum class TypeTag {
+    Boolean,
+    Comb,
+    Container,
+    DataValue,
+    DataWindow,
+    Date,
+    DateTime,
+    Decimal,
+    Delta,
+    Desc,
+    Draw,
+    Encrypt,
+    EventPseudoModel,
+    ExclGroup,
+    ExData,
+    Extras,
+    Field,
+    Float,
+    Form,
+    Handler,
+    HostPseudoModel,
+    Image,
+    InstanceManager,
+    Integer,
+    LayoutPseudoModel,
+    List,
+    LogPseudoModel,
+    Manifest,
+    Model,
+    Node,
+    Object,
+    Occur,
+    Packet,
+    Picture,
+    Script,
+    SignaturePesudoModel,
+    Source,
+    Subform,
+    SubformSet,
+    Template,
+    Text,
+    TextNode,
+    Time,
+    Tree,
+    TreeList,
+    Value,
+    WsdlConnection,
+    Xfa,
+  };
+
   explicit CJX_Object(CXFA_Object* obj);
   virtual ~CJX_Object();
+
+  virtual bool DynamicTypeIs(TypeTag eType) const;
 
   JSE_PROP(className);
 
@@ -110,67 +164,31 @@ class CJX_Object {
                          bool bNotify,
                          bool bScriptModify);
 
-  void ScriptAttributeString(CFXJSE_Value* pValue,
-                             bool bSetting,
-                             XFA_Attribute eAttribute);
-  void ScriptAttributeBool(CFXJSE_Value* pValue,
-                           bool bSetting,
-                           XFA_Attribute eAttribute);
-  void ScriptAttributeInteger(CFXJSE_Value* pValue,
-                              bool bSetting,
-                              XFA_Attribute eAttribute);
+  // Not actual properties, but invoked as property handlers to cover
+  // a broad range of underlying properties.
+  JSE_PROP(ScriptAttributeString);
+  JSE_PROP(ScriptAttributeBool);
+  JSE_PROP(ScriptAttributeInteger);
+  JSE_PROP(ScriptSomFontColor);
+  JSE_PROP(ScriptSomFillColor);
+  JSE_PROP(ScriptSomBorderColor);
+  JSE_PROP(ScriptSomBorderWidth);
+  JSE_PROP(ScriptSomValidationMessage);
+  JSE_PROP(ScriptSomMandatoryMessage);
+  JSE_PROP(ScriptFieldLength);
+  JSE_PROP(ScriptSomDefaultValue);
+  JSE_PROP(ScriptSomDefaultValue_Read);
+  JSE_PROP(ScriptSomDataNode);
+  JSE_PROP(ScriptSomMandatory);
+  JSE_PROP(ScriptSomInstanceIndex);
+  JSE_PROP(ScriptSubformInstanceManager);
+  JSE_PROP(ScriptSubmitFormatMode);
+  JSE_PROP(ScriptFormChecksumS);
+  JSE_PROP(ScriptExclGroupErrorText);
 
-  void ScriptSomFontColor(CFXJSE_Value* pValue,
-                          bool bSetting,
-                          XFA_Attribute eAttribute);
-  void ScriptSomFillColor(CFXJSE_Value* pValue,
-                          bool bSetting,
-                          XFA_Attribute eAttribute);
-  void ScriptSomBorderColor(CFXJSE_Value* pValue,
-                            bool bSetting,
-                            XFA_Attribute eAttribute);
-  void ScriptSomBorderWidth(CFXJSE_Value* pValue,
-                            bool bSetting,
-                            XFA_Attribute eAttribute);
-  void ScriptSomValidationMessage(CFXJSE_Value* pValue,
-                                  bool bSetting,
-                                  XFA_Attribute eAttribute);
-  void ScriptSomMandatoryMessage(CFXJSE_Value* pValue,
-                                 bool bSetting,
-                                 XFA_Attribute eAttribute);
-  void ScriptFieldLength(CFXJSE_Value* pValue,
-                         bool bSetting,
-                         XFA_Attribute eAttribute);
-  void ScriptSomDefaultValue(CFXJSE_Value* pValue,
-                             bool bSetting,
-                             XFA_Attribute eAttribute);
-  void ScriptSomDefaultValue_Read(CFXJSE_Value* pValue,
-                                  bool bSetting,
-                                  XFA_Attribute eAttribute);
-  void ScriptSomDataNode(CFXJSE_Value* pValue,
-                         bool bSetting,
-                         XFA_Attribute eAttribute);
-  void ScriptSomMandatory(CFXJSE_Value* pValue,
-                          bool bSetting,
-                          XFA_Attribute eAttribute);
-  void ScriptSomInstanceIndex(CFXJSE_Value* pValue,
-                              bool bSetting,
-                              XFA_Attribute eAttribute);
   void ScriptSomMessage(CFXJSE_Value* pValue,
                         bool bSetting,
                         XFA_SOM_MESSAGETYPE iMessageType);
-  void ScriptSubformInstanceManager(CFXJSE_Value* pValue,
-                                    bool bSetting,
-                                    XFA_AttributeValue eAttribute);
-  void ScriptSubmitFormatMode(CFXJSE_Value* pValue,
-                              bool bSetting,
-                              XFA_Attribute eAttribute);
-  void ScriptFormChecksumS(CFXJSE_Value* pValue,
-                           bool bSetting,
-                           XFA_Attribute eAttribute);
-  void ScriptExclGroupErrorText(CFXJSE_Value* pValue,
-                                bool bSetting,
-                                XFA_Attribute eAttribute);
 
   Optional<WideString> TryNamespace();
 
@@ -222,6 +240,9 @@ class CJX_Object {
   void ThrowException(const WideString& str) const;
 
  private:
+  using Type__ = CJX_Object;
+  static const TypeTag static_type__ = TypeTag::Object;
+
   std::pair<CXFA_Node*, int32_t> GetPropertyInternal(int32_t index,
                                                      XFA_Element eType) const;
   CXFA_Node* GetOrCreatePropertyInternal(int32_t index, XFA_Element eType);
@@ -266,8 +287,9 @@ class CJX_Object {
   size_t calc_recursion_count_ = 0;
 };
 
-typedef void (CJX_Object::*XFA_ATTRIBUTE_CALLBACK)(CFXJSE_Value* pValue,
-                                                   bool bSetting,
-                                                   XFA_Attribute eAttribute);
+typedef void (*XFA_ATTRIBUTE_CALLBACK)(CJX_Object* pNode,
+                                       CFXJSE_Value* pValue,
+                                       bool bSetting,
+                                       XFA_Attribute eAttribute);
 
 #endif  // FXJS_XFA_CJX_OBJECT_H_

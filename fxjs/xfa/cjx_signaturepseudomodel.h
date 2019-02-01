@@ -17,12 +17,19 @@ class CJX_SignaturePseudoModel final : public CJX_Object {
   explicit CJX_SignaturePseudoModel(CScript_SignaturePseudoModel* model);
   ~CJX_SignaturePseudoModel() override;
 
-  JSE_METHOD(verifySignature /*verify*/, CJX_SignaturePseudoModel);
-  JSE_METHOD(sign, CJX_SignaturePseudoModel);
-  JSE_METHOD(enumerate, CJX_SignaturePseudoModel);
-  JSE_METHOD(clear, CJX_SignaturePseudoModel);
+  // CJX_Object:
+  bool DynamicTypeIs(TypeTag eType) const override;
+
+  JSE_METHOD(verifySignature /*verify*/);
+  JSE_METHOD(sign);
+  JSE_METHOD(enumerate);
+  JSE_METHOD(clear);
 
  private:
+  using Type__ = CJX_SignaturePseudoModel;
+  using ParentType__ = CJX_Object;
+
+  static const TypeTag static_type__ = TypeTag::SignaturePesudoModel;
   static const CJX_MethodSpec MethodSpecs[];
 };
 

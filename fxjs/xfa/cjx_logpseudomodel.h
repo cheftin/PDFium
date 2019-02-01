@@ -19,13 +19,20 @@ class CJX_LogPseudoModel final : public CJX_Object {
   explicit CJX_LogPseudoModel(CScript_LogPseudoModel* model);
   ~CJX_LogPseudoModel() override;
 
-  JSE_METHOD(message, CJX_LogPseudoModel);
-  JSE_METHOD(traceEnabled, CJX_LogPseudoModel);
-  JSE_METHOD(traceActivate, CJX_LogPseudoModel);
-  JSE_METHOD(traceDeactivate, CJX_LogPseudoModel);
-  JSE_METHOD(trace, CJX_LogPseudoModel);
+  // CJX_Object:
+  bool DynamicTypeIs(TypeTag eType) const override;
+
+  JSE_METHOD(message);
+  JSE_METHOD(traceEnabled);
+  JSE_METHOD(traceActivate);
+  JSE_METHOD(traceDeactivate);
+  JSE_METHOD(trace);
 
  private:
+  using Type__ = CJX_LogPseudoModel;
+  using ParentType__ = CJX_Object;
+
+  static const TypeTag static_type__ = TypeTag::LogPseudoModel;
   static const CJX_MethodSpec MethodSpecs[];
 };
 

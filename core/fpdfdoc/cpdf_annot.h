@@ -64,7 +64,6 @@ class CPDF_Annot {
     XFAWIDGET
   };
 
-  static bool IsAnnotationHidden(CPDF_Dictionary* pAnnotDict);
   static CPDF_Annot::Subtype StringToAnnotSubtype(const ByteString& sSubtype);
   static ByteString AnnotSubtypeToString(CPDF_Annot::Subtype nSubtype);
   static CFX_FloatRect RectFromQuadPointsArray(const CPDF_Array* pArray,
@@ -84,7 +83,10 @@ class CPDF_Annot {
   uint32_t GetFlags() const;
   CFX_FloatRect GetRect() const;
   CPDF_Document* GetDocument() const { return m_pDocument.Get(); }
-  CPDF_Dictionary* GetAnnotDict() const { return m_pAnnotDict.Get(); }
+  const CPDF_Dictionary* GetAnnotDict() const { return m_pAnnotDict.Get(); }
+  CPDF_Dictionary* GetAnnotDict() { return m_pAnnotDict.Get(); }
+
+  bool IsHidden() const;
 
   bool DrawAppearance(CPDF_Page* pPage,
                       CFX_RenderDevice* pDevice,
@@ -108,11 +110,12 @@ class CPDF_Annot {
  private:
   void Init();
   void GenerateAPIfNeeded();
-  bool ShouldDrawAnnotation();
+  bool ShouldGenerateAP() const;
+  bool ShouldDrawAnnotation() const;
 
   CFX_FloatRect RectForDrawing() const;
 
-  MaybeOwned<CPDF_Dictionary> m_pAnnotDict;
+  MaybeOwned<CPDF_Dictionary> const m_pAnnotDict;
   UnownedPtr<CPDF_Document> const m_pDocument;
   CPDF_Annot::Subtype m_nSubtype;
   std::map<CPDF_Stream*, std::unique_ptr<CPDF_Form>> m_APMap;

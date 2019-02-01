@@ -17,10 +17,13 @@ class CJX_Subform final : public CJX_Container {
   explicit CJX_Subform(CXFA_Node* container);
   ~CJX_Subform() override;
 
-  JSE_METHOD(execCalculate, CJX_Subform);
-  JSE_METHOD(execEvent, CJX_Subform);
-  JSE_METHOD(execInitialize, CJX_Subform);
-  JSE_METHOD(execValidate, CJX_Subform);
+  // CJX_Object:
+  bool DynamicTypeIs(TypeTag eType) const override;
+
+  JSE_METHOD(execCalculate);
+  JSE_METHOD(execEvent);
+  JSE_METHOD(execInitialize);
+  JSE_METHOD(execValidate);
 
   JSE_PROP(instanceIndex);
   JSE_PROP(layout);
@@ -28,6 +31,10 @@ class CJX_Subform final : public CJX_Container {
   JSE_PROP(validationMessage);
 
  private:
+  using Type__ = CJX_Subform;
+  using ParentType__ = CJX_Container;
+
+  static const TypeTag static_type__ = TypeTag::Subform;
   static const CJX_MethodSpec MethodSpecs[];
 };
 

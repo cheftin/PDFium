@@ -7,17 +7,26 @@
 #ifndef FXJS_XFA_CJX_EXDATA_H_
 #define FXJS_XFA_CJX_EXDATA_H_
 
-#include "fxjs/xfa/cjx_content.h"
+#include "fxjs/xfa/cjx_object.h"
 #include "fxjs/xfa/jse_define.h"
 
 class CXFA_ExData;
 
-class CJX_ExData final : public CJX_Content {
+class CJX_ExData final : public CJX_Object {
  public:
   explicit CJX_ExData(CXFA_ExData* node);
   ~CJX_ExData() override;
 
+  // CJX_Object:
+  bool DynamicTypeIs(TypeTag eType) const override;
+
   JSE_PROP(defaultValue); /* {default} */
+
+ private:
+  using Type__ = CJX_ExData;
+  using ParentType__ = CJX_Object;
+
+  static const TypeTag static_type__ = TypeTag::ExData;
 };
 
 #endif  // FXJS_XFA_CJX_EXDATA_H_

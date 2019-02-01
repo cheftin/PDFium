@@ -8,9 +8,13 @@
 
 #include "xfa/fxfa/parser/cxfa_exdata.h"
 
-CJX_ExData::CJX_ExData(CXFA_ExData* node) : CJX_Content(node) {}
+CJX_ExData::CJX_ExData(CXFA_ExData* node) : CJX_Object(node) {}
 
 CJX_ExData::~CJX_ExData() = default;
+
+bool CJX_ExData::DynamicTypeIs(TypeTag eType) const {
+  return eType == static_type__ || ParentType__::DynamicTypeIs(eType);
+}
 
 void CJX_ExData::defaultValue(CFXJSE_Value* pValue,
                               bool bSetting,

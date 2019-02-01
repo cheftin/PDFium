@@ -14,6 +14,7 @@
 #include "fxjs/xfa/cfxjse_value.h"
 #include "xfa/fxfa/cxfa_ffdoc.h"
 #include "xfa/fxfa/cxfa_ffnotify.h"
+#include "xfa/fxfa/cxfa_ffwidget.h"
 #include "xfa/fxfa/parser/cscript_hostpseudomodel.h"
 #include "xfa/fxfa/parser/cxfa_layoutprocessor.h"
 #include "xfa/fxfa/parser/cxfa_node.h"
@@ -72,6 +73,10 @@ CJX_HostPseudoModel::CJX_HostPseudoModel(CScript_HostPseudoModel* model)
 }
 
 CJX_HostPseudoModel::~CJX_HostPseudoModel() {}
+
+bool CJX_HostPseudoModel::DynamicTypeIs(TypeTag eType) const {
+  return eType == static_type__ || ParentType__::DynamicTypeIs(eType);
+}
 
 void CJX_HostPseudoModel::appType(CFXJSE_Value* pValue,
                                   bool bSetting,
@@ -277,9 +282,6 @@ CJS_Result CJX_HostPseudoModel::openList(
         ToNode(static_cast<CFXJSE_Engine*>(runtime)->ToXFAObject(params[0]));
   } else if (params[0]->IsString()) {
     CFXJSE_Engine* pScriptContext = GetDocument()->GetScriptContext();
-    if (!pScriptContext)
-      return CJS_Result::Success();
-
     CXFA_Object* pObject = pScriptContext->GetThisObject();
     if (!pObject)
       return CJS_Result::Success();
@@ -375,9 +377,6 @@ CJS_Result CJX_HostPseudoModel::resetData(
   while (iStart < iExpLength) {
     iStart = FilterName(expression.AsStringView(), iStart, wsName);
     CFXJSE_Engine* pScriptContext = GetDocument()->GetScriptContext();
-    if (!pScriptContext)
-      return CJS_Result::Success();
-
     CXFA_Object* pObject = pScriptContext->GetThisObject();
     if (!pObject)
       return CJS_Result::Success();
@@ -440,9 +439,6 @@ CJS_Result CJX_HostPseudoModel::setFocus(
           ToNode(static_cast<CFXJSE_Engine*>(runtime)->ToXFAObject(params[0]));
     } else if (params[0]->IsString()) {
       CFXJSE_Engine* pScriptContext = GetDocument()->GetScriptContext();
-      if (!pScriptContext)
-        return CJS_Result::Success();
-
       CXFA_Object* pObject = pScriptContext->GetThisObject();
       if (!pObject)
         return CJS_Result::Success();

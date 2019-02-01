@@ -16,7 +16,7 @@ const CXFA_Node::AttributeData kIntegerAttributeData[] = {
     {XFA_Attribute::Name, XFA_AttributeType::CData, nullptr},
     {XFA_Attribute::Use, XFA_AttributeType::CData, nullptr},
     {XFA_Attribute::Usehref, XFA_AttributeType::CData, nullptr},
-    {XFA_Attribute::Unknown, XFA_AttributeType::Integer, nullptr}};
+};
 
 }  // namespace
 
@@ -27,7 +27,7 @@ CXFA_Integer::CXFA_Integer(CXFA_Document* doc, XFA_PacketType packet)
                  XFA_XDPPACKET_Form),
                 XFA_ObjectType::ContentNode,
                 XFA_Element::Integer,
-                nullptr,
+                {},
                 kIntegerAttributeData,
                 pdfium::MakeUnique<CJX_Integer>(this)) {}
 

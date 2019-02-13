@@ -30,10 +30,11 @@
 #include "fpdfsdk/cpdfsdk_pageview.h"
 #include "testing/image_diff/image_diff_png.h"
 #include "core/fpdfapi/parser/cpdf_dictionary.h"
-#include "core/fpdfapi/parser/cpdf_reference.h"
-#include "core/fpdfapi/parser/cpdf_document.h"
 #include "core/fpdfapi/parser/cpdf_array.h"
 #include "constants/page_object.h"
+#include "core/fpdfapi/parser/cpdf_stream.h"
+#include "core/fpdfapi/parser/cpdf_stream_acc.h"
+#include "core/fxcrt/fx_safe_types.h"
 
 FPDF_EXPORT _FPDF_PNG_ENCODING_::_FPDF_PNG_ENCODING_() = default;
 FPDF_EXPORT _FPDF_PNG_ENCODING_::~_FPDF_PNG_ENCODING_() = default;
@@ -689,34 +690,62 @@ FPDF_ExtractFont(FPDF_DOCUMENT document, FPDF_STRING font_name, FPDF_STRING save
 }
 
 FPDF_EXPORT uint8_t* FPDF_CALLCONV
-FPDF_ExtractPageContents(FPDF_DOCUMENT document, int page_index, uint32_t& length)
+FPDF_ExtractPageContents(FPDF_PAGE page, uint32_t& length)
 {
-    CPDF_Document* pDoc = CPDFDocumentFromFPDFDocument(document);
-    if (nullptr == pDoc)
+    CPDF_Page* pPDFPage = CPDFPageFromFPDFPage(page);
+    if (nullptr == pPDFPage)
         return nullptr;
-    const CPDF_Dictionary* pPageDict = pDoc->GetPageDictionary(page_index);
-    if (nullptr == pPageDict)
-        return nullptr;
-
-    const CPDF_Stream* stream = nullptr;
-    const CPDF_Object* pObj = pPageDict->GetObjectFor(pdfium::page_object::kContents);
-    if (nullptr == pObj)
-        return nullptr;
-    if (pObj->IsReference()) {
-        stream = pPageDict->GetStreamFor(pdfium::page_object::kContents);
-    } else if (pObj->IsArray()) {
-        CPDF_Array* pArrayObj = static_cast<CPDF_Array*>(const_cast<CPDF_Object*>(pObj));
-        stream = pArrayObj->GetStreamAt(0);
-    }
-    if (nullptr == stream)
+    if (nullptr == pPDFPage->GetDocument() || nullptr == pPDFPage->GetDict())
         return nullptr;
 
-    // extract data
-    length = stream->GetRawSize();
-    uint8_t* data = new uint8_t[length];
-    if (!stream->ReadRawData(0, data, length)) {
-        delete [] data;
+    CPDF_Object* pContent = pPDFPage->GetDict()->GetDirectObjectFor(pdfium::page_object::kContents);
+    if (nullptr == pContent)
         return nullptr;
+
+    uint8_t* data = nullptr;
+    if (pContent->IsStream()) {
+        CPDF_Stream* pStream = pContent->AsStream();
+        if (pStream != nullptr) {
+            RetainPtr<CPDF_StreamAcc> single_stream;
+            single_stream = pdfium::MakeRetain<CPDF_StreamAcc>(pStream);
+            single_stream->LoadAllDataFiltered();
+            length = single_stream->GetSize();
+            data = new uint8_t[length];
+            uint8_t* temp = single_stream->GetData();
+            if (temp == nullptr) {
+                delete[] data;
+                return nullptr;
+            }
+            memcpy(data, temp, length);
+        }
+    } else if (pContent->IsArray()) {
+        CPDF_Array* pArray = pContent->AsArray();
+        if (pArray != nullptr) {
+            uint32_t stream_counts = pArray->size();
+            if (stream_counts == 0)
+                return nullptr;
+            std::vector<RetainPtr<CPDF_StreamAcc>> stream_array;
+            stream_array.resize(stream_counts);
+            FX_SAFE_UINT32 safe_size = 0;
+            for (size_t index = 0; index < stream_counts; ++index) {
+                CPDF_Stream* pStreamObj = ToStream(pArray->GetDirectObjectAt(index));
+                stream_array[index] = pdfium::MakeRetain<CPDF_StreamAcc>(pStreamObj);
+                stream_array[index]->LoadAllDataFiltered();
+                safe_size += stream_array[index]->GetSize();
+                if (!safe_size.IsValid()) {
+                    stream_array.clear();
+                    return nullptr;
+                }
+            }
+            length = safe_size.ValueOrDie();
+            data = new uint8_t[length];
+            uint32_t pos = 0;
+            for (const auto& stream : stream_array) {
+                memcpy(data + pos, stream->GetData(), stream->GetSize());
+                pos += stream->GetSize();
+            }
+            stream_array.clear();
+        }
     }
 
     return data;

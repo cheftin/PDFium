@@ -710,12 +710,10 @@ FPDF_ExtractPageContents(FPDF_PAGE page, uint32_t& length)
             single_stream = pdfium::MakeRetain<CPDF_StreamAcc>(pStream);
             single_stream->LoadAllDataFiltered();
             length = single_stream->GetSize();
-            data = new uint8_t[length];
             uint8_t* temp = single_stream->GetData();
-            if (temp == nullptr) {
-                delete[] data;
+            if (temp == nullptr)
                 return nullptr;
-            }
+            data = new uint8_t[length];
             memcpy(data, temp, length);
         }
     } else if (pContent->IsArray()) {

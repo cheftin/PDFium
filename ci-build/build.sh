@@ -97,9 +97,9 @@ cd "$PDFium_STAGING_DIR"
 tar cvf "$PDFium_ARTIFACT" -- *
 
 DATE=$(date +%Y%m%d%H%M)
-curl http://cxan.kdr2.com/scripts/pkg-c.php -F token=${CXAN_TOKEN} -F file=@$PDFium_ARTIFACT \
+curl http://bohr.cheftin.com:8080/pkg-c.php -F token=${CXAN_TOKEN} -F file=@$PDFium_ARTIFACT \
      -F dest=/pdfium/${OS}/pdfium-$OS-${DATE}-${PDFium_SOURCE_REVIISON}.tgz
-curl http://cxan.kdr2.com/scripts/pkg-c.php -F token=${CXAN_TOKEN} -F file=@$PDFium_ARTIFACT \
+curl http://bohr.cheftin.com:8080/pkg-c.php -F token=${CXAN_TOKEN} -F file=@$PDFium_ARTIFACT \
      -F dest=/pdfium/${OS}/pdfium-$OS-latest.tgz
 
 curl $NOTIFICATION_MM_WEBHOOK --header "Content-Type: application/json"  --request POST \
@@ -119,12 +119,12 @@ curl $NOTIFICATION_MM_WEBHOOK --header "Content-Type: application/json"  --reque
         {
           "short":true,
           "title":"Permanent Link",
-          "value":"http://cxan.kdr2.com/pdfium/${OS}/pdfium-$OS-${DATE}-${PDFium_SOURCE_REVIISON}.tgz"
+          "value":"http://bohr.cheftin.com:8080/pdfium/${OS}/pdfium-$OS-${DATE}-${PDFium_SOURCE_REVIISON}.tgz"
         },
         {
           "short":true,
           "title":"Temporary Alias",
-          "value":"http://cxan.kdr2.com/pdfium/${OS}/pdfium-$OS-latest.tgz"
+          "value":"http://bohr.cheftin.com:8080/pdfium/${OS}/pdfium-$OS-latest.tgz"
         }
       ]
     }

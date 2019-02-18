@@ -216,6 +216,9 @@ FPDF_ExtractFont(FPDF_DOCUMENT document, FPDF_STRING font_name, FPDF_STRING save
 
 FPDF_EXPORT uint8_t* FPDF_CALLCONV
 FPDF_ExtractPageContents(FPDF_PAGE page, uint32_t& length);
+
+FPDF_EXPORT uint8_t* FPDF_CALLCONV
+FPDF_ExtractPageImageResources(FPDF_PAGE page, uint32_t& length);
 #ifdef __cplusplus
 }
 #endif

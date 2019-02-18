@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 #include <vector>
+#include <algorithm>
 
 #include "core/fpdfapi/cpdf_modulemgr.h"
 #include "core/fpdfapi/cpdf_pagerendercontext.h"
@@ -746,5 +747,55 @@ FPDF_ExtractPageContents(FPDF_PAGE page, uint32_t& length)
         }
     }
 
+    return data;
+}
+
+FPDF_EXPORT uint8_t* FPDF_CALLCONV
+FPDF_ExtractPageImageResources(FPDF_PAGE page, uint32_t& length)
+{
+    CPDF_Page* pPDFPage = CPDFPageFromFPDFPage(page);
+    if (nullptr == pPDFPage)
+        return nullptr;
+    if (nullptr == pPDFPage->GetDocument() || nullptr == pPDFPage->GetDict())
+        return nullptr;
+    CPDF_Dictionary* pRes = pPDFPage->GetDict()->GetDictFor(pdfium::page_object::kResources);
+    if (nullptr == pRes)
+        return nullptr;
+    CPDF_Dictionary* pPageXObject = pRes->GetDictFor("XObject");
+    if (nullptr == pPageXObject)
+        return nullptr;
+    std::vector<ByteString> keys = pPageXObject->GetKeys();
+    if (keys.size() == 0)
+        return nullptr;
+    std::sort(keys.begin(), keys.end());
+    std::vector<RetainPtr<CPDF_StreamAcc>> stream_vec;
+    FX_SAFE_UINT32 safe_size = 0;
+    for (auto& key : keys) {
+        CPDF_Object* pObj = pPageXObject->GetDirectObjectFor(key);
+        if (pObj->IsStream()) {
+            CPDF_Stream* pStream = pObj->AsStream();
+            if (pStream == nullptr || pStream->GetDict()->GetStringFor("Subtype") != "Image")
+                continue;
+            RetainPtr<CPDF_StreamAcc> stream = pdfium::MakeRetain<CPDF_StreamAcc>(pStream);
+            stream_vec.push_back(stream);
+            stream->LoadAllDataFiltered();
+            safe_size += stream->GetSize();
+            if (!safe_size.IsValid()) {
+                stream_vec.clear();
+                return nullptr;
+            }
+        }
+    }
+    length = safe_size.ValueOrDie();
+    if (length == 0)
+        return nullptr;
+    
+    uint8_t* data = new uint8_t[length];
+    uint32_t pos = 0;
+    for (const auto& stream : stream_vec) {
+        memcpy(data + pos, stream->GetData(), stream->GetSize());
+        pos += stream->GetSize();
+    }
+    stream_vec.clear();
     return data;
 }

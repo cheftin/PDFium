@@ -429,8 +429,112 @@ void FPDF_ProcessObject(
     }
 }
 
+void FPDF_WStringToString(const std::wstring& src, std::string& dest)
+{
+    std::string sStrLocale = setlocale(LC_ALL, "");
+    const wchar_t* pSrc = src.c_str();
+    size_t destSize = wcstombs(nullptr, pSrc, 0) + 1;
+
+	char* pDest = new char[destSize];
+    wcstombs(pDest, pSrc, destSize);
+    dest = pDest;
+
+    setlocale(LC_ALL, sStrLocale.c_str());
+	delete [] pDest;
+	pDest = nullptr;
+}
+
+void FPDF_GenGlyphKey(FPDF_CHAR_LIST& faceName, wchar_t text, std::string& key) {
+    FPDF_CHAR_LIST::iterator pos = std::find(faceName.begin(), faceName.end(), '+');
+    std::string fontName;
+    if (pos != faceName.end()) {
+        fontName = std::string(pos + 1, faceName.end());
+    } else {
+        fontName = std::string(faceName.begin(), faceName.end());;
+    }
+    wchar_t tmp[2] = {0};
+    tmp[0] = text;
+    std::string textStr;
+    FPDF_WStringToString(tmp, textStr);
+    if (textStr.size() < 1)
+        return;
+    key = fontName + "-" + textStr;
+}
+
+void FPDF_ExtractCharGlyph(FPDF_CHAR_INFO& charInfo, std::string& glyph)
+{
+    bool bHasFont = charInfo.m_pTextObj && charInfo.m_pTextObj->GetFont();
+    if (!bHasFont)
+        return;
+    CPDF_Font* font = charInfo.m_pTextObj->GetFont();
+    bool bVert = false;
+    int glyph_index = font->GlyphFromCharCode(charInfo.m_Charcode, &bVert);
+    CFX_Font* cfx_font = font->GetFont();
+    if (nullptr == cfx_font)
+        return;
+
+    uint32_t glyph_width = cfx_font->GetGlyphWidth(glyph_index);
+    const CFX_PathData* path_data = cfx_font->LoadGlyphPath(glyph_index, glyph_width);
+    if (nullptr == path_data)
+        return;
+
+    const std::vector<FX_PATHPOINT>& fx_path = path_data->GetPoints();
+    if (fx_path.size() < 1)
+        return;
+
+    char format[11] = {0};
+    char tmp[25] = {0};
+    int c_counts = 0;
+    char type = 0;
+    for (auto& p : fx_path) {
+        switch (p.m_Type) {
+            case FXPT_TYPE::LineTo:
+                type = 'L';
+                break;
+            case FXPT_TYPE::MoveTo:
+                type = 'M';
+                break;
+            case FXPT_TYPE::BezierTo:
+                type = 'C';
+                break;
+            default:
+                type = 'E';
+                break;
+        }
+        if (type == 'C') {
+            ++c_counts;
+            if (c_counts == 1) {
+                memcpy(format, "%c %f %f, ", 11);
+            }
+            else if (c_counts == 2) {
+                memcpy(format, "%f %f, ", 8);
+            }
+            else if (c_counts == 3) {
+                memcpy(format, "%f %f ", 7);
+            }
+        } else {
+            memcpy(format, "%c %f %f ", 10);
+        }
+        float tmp_y = -p.m_Point.y;
+        if (c_counts < 2) {
+            sprintf(tmp, format, type, p.m_Point.x, tmp_y);
+        } else {
+            sprintf(tmp, format, p.m_Point.x, tmp_y);
+            if (c_counts == 3)
+                c_counts = 0;
+        }
+        int tmp_len = strlen(tmp);
+        if (p.m_CloseFigure) {
+            tmp[tmp_len] = 'Z';
+            tmp[tmp_len + 1] = ' ';
+            tmp_len += 2;
+        }
+        glyph += tmp;
+    }
+}
+
 FPDF_EXPORT void FPDF_CALLCONV
-FPDF_LoadPageObject(FPDF_PAGE page, FPDF_PAGE_ITEM& pageObj) {
+FPDF_LoadPageObject(FPDF_PAGE page, FPDF_PAGE_ITEM& pageObj, bool saveGlyphs) {
     CPDF_Page* pPDFPage = CPDFPageFromFPDFPage(page);
     if (!pPDFPage)
         return;
@@ -451,6 +555,7 @@ FPDF_LoadPageObject(FPDF_PAGE page, FPDF_PAGE_ITEM& pageObj) {
     for (int i = 0; i < textPage->CountChars(); i++) {
         FPDF_CHAR_ITEM charItem;
         FPDF_CHAR_INFO charInfo;
+        FPDF_CHAR_LIST faceName;
         textPage->GetCharInfo(i, &charInfo);
         FPDF_GetCharItem(charInfo, charItem, pPDFPage);
 
@@ -468,9 +573,26 @@ FPDF_LoadPageObject(FPDF_PAGE page, FPDF_PAGE_ITEM& pageObj) {
             textItem.chars.push_back(charItem);
             pageObj.texts.push_back(textItem);
             curTextObj = charInfo.m_pTextObj;
+            faceName = textItem.faceName;
         } else {
             FPDF_TEXT_ITEM &textItem = pageObj.texts.back();
             textItem.chars.push_back(charItem);
+            faceName = textItem.faceName;
+        }
+        if (saveGlyphs) {
+            if (faceName.size() < 1)
+                continue;
+            std::string key;
+            FPDF_GenGlyphKey(faceName, charItem.text, key);
+            if (key.size() < 1)
+                continue;
+            if (pageObj.glyphs.count(key) > 0)
+                continue;
+            std::string glyph;
+            FPDF_ExtractCharGlyph(charInfo, glyph);
+            if (glyph.size() < 1)
+                continue;
+            pageObj.glyphs[key] = glyph;
         }
     }
     FPDF_ProcessObject(pPDFPage, pageObj.paths, pageObj.images);
@@ -789,7 +911,7 @@ FPDF_ExtractPageImageResources(FPDF_PAGE page, uint32_t& length)
     length = safe_size.ValueOrDie();
     if (length == 0)
         return nullptr;
-    
+
     uint8_t* data = new uint8_t[length];
     uint32_t pos = 0;
     for (const auto& stream : stream_vec) {

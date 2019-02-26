@@ -14,6 +14,7 @@
 #include <vector>
 #include <string>
 #include <fstream>
+#include <map>
 
 #if defined(_WIN32) && !defined(__WINDOWS__)
 #include <windows.h>
@@ -155,6 +156,7 @@ typedef struct _FPDF_PAGE_ITEM_ {
     std::vector<FPDF_TEXT_ITEM> texts;
     std::vector<FPDF_PATH_ITEM> paths;
     std::vector<FPDF_IMAGE_ITEM> images;
+    std::map<std::string, std::string> glyphs;
 } FPDF_PAGE_ITEM;
 
 typedef struct _FPDF_BOOKMARK_ITEM_ {
@@ -194,7 +196,7 @@ class BufferFileWrite : public FPDF_FILEWRITE {
 };
 
 FPDF_EXPORT void FPDF_CALLCONV
-FPDF_LoadPageObject(FPDF_PAGE page, FPDF_PAGE_ITEM& pageObj);
+FPDF_LoadPageObject(FPDF_PAGE page, FPDF_PAGE_ITEM& pageObj, bool saveGlyphs=false);
 
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
 FPDF_SaveDocument(FPDF_DOCUMENT document, FPDF_STRING file_path);

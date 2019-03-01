@@ -429,9 +429,10 @@ void FPDF_ProcessObject(
     }
 }
 
-void FPDF_WStringToString(const std::wstring& src, std::string& dest)
+void FPDF_WStringToString(const std::wstring& src, std::string& dest, const char* locale = "zh_CN.UTF-8")
 {
-    std::string sStrLocale = setlocale(LC_ALL, "");
+    std::string curLocale = setlocale(LC_ALL, nullptr);
+    setlocale(LC_ALL, locale);
     const wchar_t* pSrc = src.c_str();
     size_t destSize = wcstombs(nullptr, pSrc, 0) + 1;
 
@@ -439,7 +440,7 @@ void FPDF_WStringToString(const std::wstring& src, std::string& dest)
     wcstombs(pDest, pSrc, destSize);
     dest = pDest;
 
-    setlocale(LC_ALL, sStrLocale.c_str());
+    setlocale(LC_ALL, curLocale.c_str());
 	delete [] pDest;
 	pDest = nullptr;
 }

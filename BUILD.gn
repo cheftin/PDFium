@@ -142,8 +142,12 @@ group("pdfium_public_headers") {
   ]
 }
 
+# Note:
+# 1. shared_library for shared lib
+# 2. jumbo_component with `pdf_is_complete_lib = true` for static lib
 jumbo_component("pdfium") {
   libs = []
+  sources = []
   configs += [ ":pdfium_core_config" ]
   public_configs = [ ":pdfium_public_config" ]
 
@@ -161,6 +165,7 @@ jumbo_component("pdfium") {
     "fxjs",
     "third_party:pdfium_base",
     "third_party:skia_shared",
+    ":image_diff",
   ]
 
   public_deps = [
@@ -199,6 +204,17 @@ jumbo_component("pdfium") {
   if (is_component_build) {
     deps += [ "testing/fuzzers:fuzzer_impls" ]
   }
+}
+
+jumbo_static_library("image_diff") {
+  sources = [
+    "testing/image_diff/image_diff_png.cpp",
+    "testing/image_diff/image_diff_png.h",
+  ]
+  configs += [ ":pdfium_core_config" ]
+  deps = [
+    "third_party:png",
+  ]
 }
 
 # Targets below this are only visible within this file (and to the

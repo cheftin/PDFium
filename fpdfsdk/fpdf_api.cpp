@@ -36,6 +36,7 @@
 #include "core/fpdfapi/parser/cpdf_stream.h"
 #include "core/fpdfapi/parser/cpdf_stream_acc.h"
 #include "core/fxcrt/fx_safe_types.h"
+#include "core/fxcrt/cfx_utf8encoder.h"
 
 FPDF_EXPORT _FPDF_PNG_ENCODING_::_FPDF_PNG_ENCODING_() = default;
 FPDF_EXPORT _FPDF_PNG_ENCODING_::~_FPDF_PNG_ENCODING_() = default;
@@ -429,20 +430,14 @@ void FPDF_ProcessObject(
     }
 }
 
-void FPDF_WStringToString(const std::wstring& src, std::string& dest, const char* locale = "zh_CN.UTF-8")
+void FPDF_WStringToString(const std::wstring& src, std::string& dest)
 {
-    std::string curLocale = setlocale(LC_ALL, nullptr);
-    setlocale(LC_ALL, locale);
-    const wchar_t* pSrc = src.c_str();
-    size_t destSize = wcstombs(nullptr, pSrc, 0) + 1;
-
-	char* pDest = new char[destSize];
-    wcstombs(pDest, pSrc, destSize);
-    dest = pDest;
-
-    setlocale(LC_ALL, curLocale.c_str());
-	delete [] pDest;
-	pDest = nullptr;
+    CFX_UTF8Encoder encoder;
+    for(auto c : src) {
+        encoder.Input(c);
+    }
+    ByteStringView result = encoder.GetResult();
+    dest = std::string(result.unterminated_c_str(), result.GetLength());
 }
 
 void FPDF_GenGlyphKey(FPDF_CHAR_LIST& faceName, wchar_t text, std::string& key) {
@@ -451,7 +446,7 @@ void FPDF_GenGlyphKey(FPDF_CHAR_LIST& faceName, wchar_t text, std::string& key) 
     if (pos != faceName.end()) {
         fontName = std::string(pos + 1, faceName.end());
     } else {
-        fontName = std::string(faceName.begin(), faceName.end());;
+        fontName = std::string(faceName.begin(), faceName.end());
     }
     wchar_t tmp[2] = {0};
     tmp[0] = text;

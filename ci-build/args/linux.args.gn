@@ -8,5 +8,5 @@ pdf_enable_v8 = false
 pdf_is_standalone = true
 
 # Static link to c++ library
-use_custom_libcxx=true
+# use_custom_libcxx=true
 # libcpp_is_static=true

@@ -1753,7 +1753,7 @@ void CFXJSE_FormCalcContext::Round(CFXJSE_Value* pThis,
   }
 
   CFGAS_Decimal decimalValue(static_cast<float>(dValue), uPrecision);
-  args.GetReturnValue()->SetDouble(decimalValue);
+  args.GetReturnValue()->SetDouble(decimalValue.ToDouble());
 }
 
 // static
@@ -5050,19 +5050,19 @@ void CFXJSE_FormCalcContext::dot_accessor(CFXJSE_Value* pThis,
   }
 
   XFA_RESOLVENODE_RS resolveNodeRS;
-  bool iRet = false;
+  bool bRet = false;
   ByteString bsAccessorName = args.GetUTF8String(1);
   if (argAccessor->IsObject() ||
       (argAccessor->IsNull() && bsAccessorName.IsEmpty())) {
-    iRet = ResolveObjects(pThis, argAccessor.get(), szSomExp.AsStringView(),
+    bRet = ResolveObjects(pThis, argAccessor.get(), szSomExp.AsStringView(),
                           &resolveNodeRS, true, szName.IsEmpty());
   } else if (!argAccessor->IsObject() && !bsAccessorName.IsEmpty() &&
              GetObjectForName(pThis, argAccessor.get(),
                               bsAccessorName.AsStringView())) {
-    iRet = ResolveObjects(pThis, argAccessor.get(), szSomExp.AsStringView(),
+    bRet = ResolveObjects(pThis, argAccessor.get(), szSomExp.AsStringView(),
                           &resolveNodeRS, true, szName.IsEmpty());
   }
-  if (!iRet) {
+  if (!bRet) {
     pContext->ThrowPropertyNotInObjectException(
         WideString::FromUTF8(szName.AsStringView()),
         WideString::FromUTF8(szSomExp.AsStringView()));
@@ -5168,19 +5168,19 @@ void CFXJSE_FormCalcContext::dotdot_accessor(CFXJSE_Value* pThis,
   }
 
   XFA_RESOLVENODE_RS resolveNodeRS;
-  bool iRet = false;
+  bool bRet = false;
   ByteString bsAccessorName = args.GetUTF8String(1);
   if (argAccessor->IsObject() ||
       (argAccessor->IsNull() && bsAccessorName.IsEmpty())) {
-    iRet = ResolveObjects(pThis, argAccessor.get(), szSomExp.AsStringView(),
+    bRet = ResolveObjects(pThis, argAccessor.get(), szSomExp.AsStringView(),
                           &resolveNodeRS, false, false);
   } else if (!argAccessor->IsObject() && !bsAccessorName.IsEmpty() &&
              GetObjectForName(pThis, argAccessor.get(),
                               bsAccessorName.AsStringView())) {
-    iRet = ResolveObjects(pThis, argAccessor.get(), szSomExp.AsStringView(),
+    bRet = ResolveObjects(pThis, argAccessor.get(), szSomExp.AsStringView(),
                           &resolveNodeRS, false, false);
   }
-  if (!iRet) {
+  if (!bRet) {
     pContext->ThrowPropertyNotInObjectException(
         WideString::FromUTF8(szName.AsStringView()),
         WideString::FromUTF8(szSomExp.AsStringView()));
@@ -5661,11 +5661,11 @@ bool CFXJSE_FormCalcContext::GetObjectForName(CFXJSE_Value* pThis,
   XFA_RESOLVENODE_RS resolveNodeRS;
   uint32_t dwFlags = XFA_RESOLVENODE_Children | XFA_RESOLVENODE_Properties |
                      XFA_RESOLVENODE_Siblings | XFA_RESOLVENODE_Parent;
-  bool iRet = pScriptContext->ResolveObjects(
+  bool bRet = pScriptContext->ResolveObjects(
       pScriptContext->GetThisObject(),
       WideString::FromUTF8(szAccessorName).AsStringView(), &resolveNodeRS,
       dwFlags, nullptr);
-  if (iRet && resolveNodeRS.dwFlags == XFA_ResolveNode_RSType_Nodes) {
+  if (bRet && resolveNodeRS.dwFlags == XFA_ResolveNode_RSType_Nodes) {
     accessorValue->Assign(
         pScriptContext->GetJSValueFromMap(resolveNodeRS.objects.front().Get()));
     return true;
@@ -5832,9 +5832,8 @@ float CFXJSE_FormCalcContext::ValueToFloat(CFXJSE_Value* pThis,
   }
   if (arg->IsString())
     return strtof(arg->ToString().c_str(), nullptr);
-  if (arg->IsUndefined())
-    return 0;
-
+  if (arg->IsUndefined() || arg->IsEmpty())
+    return 0.0f;
   return arg->ToFloat();
 }
 
@@ -5866,7 +5865,7 @@ double CFXJSE_FormCalcContext::ValueToDouble(CFXJSE_Value* pThis,
   }
   if (arg->IsString())
     return strtod(arg->ToString().c_str(), nullptr);
-  if (arg->IsUndefined())
+  if (arg->IsUndefined() || arg->IsEmpty())
     return 0;
   return arg->ToDouble();
 }
@@ -5908,7 +5907,7 @@ double CFXJSE_FormCalcContext::ExtractDouble(CFXJSE_Value* pThis,
 
 // static
 ByteString CFXJSE_FormCalcContext::ValueToUTF8String(CFXJSE_Value* arg) {
-  if (!arg || arg->IsNull() || arg->IsUndefined())
+  if (!arg || arg->IsNull() || arg->IsUndefined() || arg->IsEmpty())
     return ByteString();
   if (arg->IsBoolean())
     return arg->ToBoolean() ? "1" : "0";

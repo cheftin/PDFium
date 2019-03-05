@@ -14,6 +14,7 @@
 #include "public/fpdfview.h"
 #include "testing/embedder_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "testing/utils/file_util.h"
 #include "testing/utils/path_service.h"
 
 namespace {
@@ -633,18 +634,18 @@ TEST_F(FPDFViewEmbedderTest, FPDF_GetPageSizeByIndex) {
   UnloadPage(page);
 }
 
-class UnSupRecordDelegate final : public EmbedderTest::Delegate {
+class RecordUnsupportedErrorDelegate final : public EmbedderTest::Delegate {
  public:
-  UnSupRecordDelegate() : type_(-1) {}
-  ~UnSupRecordDelegate() override {}
+  RecordUnsupportedErrorDelegate() = default;
+  ~RecordUnsupportedErrorDelegate() override = default;
 
   void UnsupportedHandler(int type) override { type_ = type; }
 
-  int type_;
+  int type_ = -1;
 };
 
 TEST_F(FPDFViewEmbedderTest, UnSupportedOperations_NotFound) {
-  UnSupRecordDelegate delegate;
+  RecordUnsupportedErrorDelegate delegate;
   SetDelegate(&delegate);
   ASSERT_TRUE(OpenDocument("hello_world.pdf"));
   EXPECT_EQ(delegate.type_, -1);
@@ -652,7 +653,7 @@ TEST_F(FPDFViewEmbedderTest, UnSupportedOperations_NotFound) {
 }
 
 TEST_F(FPDFViewEmbedderTest, UnSupportedOperations_LoadCustomDocument) {
-  UnSupRecordDelegate delegate;
+  RecordUnsupportedErrorDelegate delegate;
   SetDelegate(&delegate);
   ASSERT_TRUE(OpenDocument("unsupported_feature.pdf"));
   EXPECT_EQ(FPDF_UNSP_DOC_PORTABLECOLLECTION, delegate.type_);
@@ -664,7 +665,7 @@ TEST_F(FPDFViewEmbedderTest, UnSupportedOperations_LoadDocument) {
   ASSERT_TRUE(
       PathService::GetTestFilePath("unsupported_feature.pdf", &file_path));
 
-  UnSupRecordDelegate delegate;
+  RecordUnsupportedErrorDelegate delegate;
   SetDelegate(&delegate);
   FPDF_DOCUMENT doc = FPDF_LoadDocument(file_path.c_str(), "");
   EXPECT_TRUE(doc != nullptr);

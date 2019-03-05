@@ -15,8 +15,8 @@
 #include "xfa/fxfa/cxfa_ffdoc.h"
 #include "xfa/fxfa/cxfa_ffnotify.h"
 #include "xfa/fxfa/cxfa_ffwidget.h"
+#include "xfa/fxfa/layout/cxfa_layoutprocessor.h"
 #include "xfa/fxfa/parser/cscript_hostpseudomodel.h"
-#include "xfa/fxfa/parser/cxfa_layoutprocessor.h"
 #include "xfa/fxfa/parser/cxfa_node.h"
 #include "xfa/fxfa/parser/xfa_resolvenode_rs.h"
 
@@ -289,19 +289,16 @@ CJS_Result CJX_HostPseudoModel::openList(
     uint32_t dwFlag = XFA_RESOLVENODE_Children | XFA_RESOLVENODE_Parent |
                       XFA_RESOLVENODE_Siblings;
     XFA_RESOLVENODE_RS resolveNodeRS;
-    bool iRet = pScriptContext->ResolveObjects(
+    bool bRet = pScriptContext->ResolveObjects(
         pObject, runtime->ToWideString(params[0]).AsStringView(),
         &resolveNodeRS, dwFlag, nullptr);
-    if (!iRet || !resolveNodeRS.objects.front()->IsNode())
+    if (!bRet || !resolveNodeRS.objects.front()->IsNode())
       return CJS_Result::Success();
 
     pNode = resolveNodeRS.objects.front()->AsNode();
   }
 
   CXFA_LayoutProcessor* pDocLayout = GetDocument()->GetLayoutProcessor();
-  if (!pDocLayout)
-    return CJS_Result::Success();
-
   CXFA_FFWidget* hWidget =
       XFA_GetWidgetFromLayoutItem(pDocLayout->GetLayoutItem(pNode));
   if (!hWidget)
@@ -384,9 +381,9 @@ CJS_Result CJX_HostPseudoModel::resetData(
     uint32_t dwFlag = XFA_RESOLVENODE_Children | XFA_RESOLVENODE_Parent |
                       XFA_RESOLVENODE_Siblings;
     XFA_RESOLVENODE_RS resolveNodeRS;
-    bool iRet = pScriptContext->ResolveObjects(pObject, wsName.AsStringView(),
+    bool bRet = pScriptContext->ResolveObjects(pObject, wsName.AsStringView(),
                                                &resolveNodeRS, dwFlag, nullptr);
-    if (!iRet || !resolveNodeRS.objects.front()->IsNode())
+    if (!bRet || !resolveNodeRS.objects.front()->IsNode())
       continue;
 
     pNode = resolveNodeRS.objects.front()->AsNode();
@@ -446,10 +443,10 @@ CJS_Result CJX_HostPseudoModel::setFocus(
       uint32_t dwFlag = XFA_RESOLVENODE_Children | XFA_RESOLVENODE_Parent |
                         XFA_RESOLVENODE_Siblings;
       XFA_RESOLVENODE_RS resolveNodeRS;
-      bool iRet = pScriptContext->ResolveObjects(
+      bool bRet = pScriptContext->ResolveObjects(
           pObject, runtime->ToWideString(params[0]).AsStringView(),
           &resolveNodeRS, dwFlag, nullptr);
-      if (!iRet || !resolveNodeRS.objects.front()->IsNode())
+      if (!bRet || !resolveNodeRS.objects.front()->IsNode())
         return CJS_Result::Success();
 
       pNode = resolveNodeRS.objects.front()->AsNode();

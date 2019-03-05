@@ -20,7 +20,8 @@
 #include "core/fxge/cfx_gemodule.h"
 #include "core/fxge/cfx_pathdata.h"
 #include "core/fxge/cfx_substfont.h"
-#include "core/fxge/fx_freetype.h"
+#include "core/fxge/fx_font.h"
+#include "core/fxge/scoped_font_transform.h"
 #include "third_party/base/ptr_util.h"
 
 #define EM_ADJUST(em, a) (em == 0 ? (a) : (a)*1000 / em)
@@ -174,6 +175,10 @@ int Outline_CubicTo(const FXFT_Vector* control1,
   return 0;
 }
 
+bool ShouldAppendStyle(const ByteString& style) {
+  return !style.IsEmpty() && style != "Regular";
+}
+
 }  // namespace
 
 const char CFX_Font::s_AngleSkew[] = {
@@ -224,7 +229,11 @@ const CFX_Font::CharsetFontMap CFX_Font::defaultTTFMap[] = {
     {-1, nullptr}};
 
 // static
+const char CFX_Font::kUntitledFontName[] = "Untitled";
+
+// static
 const char CFX_Font::kDefaultAnsiFontName[] = "Helvetica";
+
 // static
 const char CFX_Font::kUniversalDefaultFontName[] = "Arial Unicode MS";
 
@@ -504,7 +513,7 @@ ByteString CFX_Font::GetPsName() const {
 
   ByteString psName = FXFT_Get_Postscript_Name(m_Face.Get());
   if (psName.IsEmpty())
-    psName = "Untitled";
+    psName = kUntitledFontName;
   return psName;
 }
 
@@ -513,8 +522,12 @@ ByteString CFX_Font::GetFamilyName() const {
     return ByteString();
   if (m_Face)
     return ByteString(FXFT_Get_Face_Family_Name(m_Face.Get()));
-
   return m_pSubstFont->m_Family;
+}
+
+ByteString CFX_Font::GetFamilyNameOrUntitled() const {
+  ByteString facename = GetFamilyName();
+  return facename.IsEmpty() ? kUntitledFontName : facename;
 }
 
 ByteString CFX_Font::GetFaceName() const {
@@ -522,10 +535,8 @@ ByteString CFX_Font::GetFaceName() const {
     return ByteString();
   if (m_Face) {
     ByteString style = ByteString(FXFT_Get_Face_Style_Name(m_Face.Get()));
-    ByteString facename = GetFamilyName();
-    if (facename.IsEmpty())
-      facename = "Untitled";
-    if (!style.IsEmpty() && style != "Regular")
+    ByteString facename = GetFamilyNameOrUntitled();
+    if (ShouldAppendStyle(style))
       facename += " " + style;
     return facename;
   }
@@ -534,18 +545,16 @@ ByteString CFX_Font::GetFaceName() const {
 
 ByteString CFX_Font::GetBaseFontName(bool restrict_to_psname) const {
   ByteString psname = GetPsName();
-  if (restrict_to_psname || (!psname.IsEmpty() && psname != "Untitled"))
+  if (restrict_to_psname || (!psname.IsEmpty() && psname != kUntitledFontName))
     return psname;
   if (!m_Face && !m_pSubstFont)
     return ByteString();
   if (m_Face) {
     ByteString style = ByteString(FXFT_Get_Face_Style_Name(m_Face.Get()));
-    ByteString facename = GetFamilyName();
-    if (facename.IsEmpty())
-      facename = "Untitled";
+    ByteString facename = GetFamilyNameOrUntitled();
     if (IsTTFont())
       facename.Remove(' ');
-    if (!style.IsEmpty() && style != "Regular")
+    if (ShouldAppendStyle(style))
       facename += (IsTTFont() ? "," : " ") + style;
     return facename;
   }

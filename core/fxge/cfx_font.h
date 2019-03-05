@@ -31,6 +31,9 @@ class CFX_Font {
   CFX_Font();
   ~CFX_Font();
 
+  // Used when the font name is empty.
+  static const char kUntitledFontName[];
+
   static const char kDefaultAnsiFontName[];
   static const char kUniversalDefaultFontName[];
   static ByteString GetDefaultFontNameByCharset(uint8_t nCharset);
@@ -128,6 +131,8 @@ class CFX_Font {
 #if _FX_PLATFORM_ == _FX_PLATFORM_APPLE_
   void ReleasePlatformResource();
 #endif  // _FX_PLATFORM_ == _FX_PLATFORM_APPLE_
+
+  ByteString GetFamilyNameOrUntitled() const;
 
   mutable UnownedPtr<FXFT_FaceRec> m_Face;
   mutable UnownedPtr<CFX_FaceCache> m_FaceCache;

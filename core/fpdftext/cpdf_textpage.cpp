@@ -154,8 +154,11 @@ uint32_t GetCharWidth(uint32_t charCode, CPDF_Font* pFont) {
   if (w > 0)
     return w;
 
-  ASSERT(pFont->GetCharBBox(charCode).Width() >= 0);
-  return pFont->GetCharBBox(charCode).Width();
+  FX_RECT rect = pFont->GetCharBBox(charCode);
+  if (!rect.Valid())
+    return 0;
+
+  return std::max(rect.Width(), 0);
 }
 
 bool GenerateSpace(const CFX_PointF& pos,
@@ -453,8 +456,8 @@ WideString CPDF_TextPage::GetTextByObject(
   });
 }
 
-void CPDF_TextPage::GetCharInfo(int index, FPDF_CHAR_INFO* info) const {
-  if (!m_bIsParsed || !pdfium::IndexInBounds(m_CharList, index))
+void CPDF_TextPage::GetCharInfo(size_t index, FPDF_CHAR_INFO* info) const {
+  if (!m_bIsParsed || index >= size())
     return;
 
   const PAGECHAR_INFO& charinfo = m_CharList[index];

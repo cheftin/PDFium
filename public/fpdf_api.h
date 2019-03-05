@@ -10,6 +10,8 @@
 #ifndef PUBLIC_FPDFAPI_H_
 #define PUBLIC_FPDFAPI_H_
 
+#define CHEFTIN_EXT 1
+
 #include <stddef.h>
 #include <vector>
 #include <string>

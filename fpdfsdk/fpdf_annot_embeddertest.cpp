@@ -66,6 +66,17 @@ TEST_F(FPDFAnnotEmbedderTest, BadParams) {
   UnloadPage(page);
 }
 
+TEST_F(FPDFAnnotEmbedderTest, BadAnnotsEntry) {
+  ASSERT_TRUE(OpenDocument("bad_annots_entry.pdf"));
+  FPDF_PAGE page = LoadPage(0);
+  ASSERT_TRUE(page);
+
+  EXPECT_EQ(1, FPDFPage_GetAnnotCount(page));
+  EXPECT_FALSE(FPDFPage_GetAnnot(page, 0));
+
+  UnloadPage(page);
+}
+
 TEST_F(FPDFAnnotEmbedderTest, RenderAnnotWithOnlyRolloverAP) {
   // Open a file with one annotation and load its first page.
   ASSERT_TRUE(OpenDocument("annotation_highlight_rollover_ap.pdf"));

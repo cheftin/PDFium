@@ -523,6 +523,7 @@ void FPDF_ExtractCharGlyph(FPDF_CHAR_INFO& charInfo, std::string& glyph)
         if (p.m_CloseFigure) {
             tmp[tmp_len] = 'Z';
             tmp[tmp_len + 1] = ' ';
+            tmp[tmp_len + 2] = 0;
             tmp_len += 2;
         }
         glyph += tmp;

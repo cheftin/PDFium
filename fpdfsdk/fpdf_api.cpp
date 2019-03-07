@@ -207,17 +207,8 @@ void FPDF_GetTextStyle(FPDF_CHAR_INFO& charInfo, FPDF_TEXT_ITEM& textItem) {
         CPDF_Font* pdFont = charInfo.m_pTextObj->GetFont();
         CFX_Font* fxFont = pdFont->GetFont();
         textItem.hasFont = true;
-
-        std::string familyName = fxFont->GetFamilyName().c_str();
-        textItem.familyName.clear();
-        textItem.familyName.reserve(familyName.size());
-        std::copy(familyName.begin(), familyName.end(), std::back_inserter(textItem.familyName));
-
-        std::string faceName = fxFont->GetFaceName().c_str();
-        textItem.faceName.clear();
-        textItem.faceName.reserve(faceName.size());
-        std::copy(faceName.begin(), faceName.end(), std::back_inserter(textItem.faceName));
-
+        textItem.familyName = fxFont->GetFamilyName().c_str();
+        textItem.faceName = fxFont->GetFaceName().c_str();
         textItem.bold = fxFont->IsBold();
         textItem.italic = fxFont->IsItalic();
         textItem.fontflags = pdFont->GetFontFlags();
@@ -440,13 +431,13 @@ void FPDF_WStringToString(const std::wstring& src, std::string& dest)
     dest = std::string(result.unterminated_c_str(), result.GetLength());
 }
 
-void FPDF_GenGlyphKey(FPDF_CHAR_LIST& faceName, wchar_t text, std::string& key) {
-    FPDF_CHAR_LIST::iterator pos = std::find(faceName.begin(), faceName.end(), '+');
+void FPDF_GenGlyphKey(std::string& faceName, wchar_t text, std::string& key) {
+    size_t pos = faceName.find('+');
     std::string fontName;
-    if (pos != faceName.end()) {
-        fontName = std::string(pos + 1, faceName.end());
+    if (pos != std::string::npos) {
+        fontName = std::string(faceName, pos + 1);
     } else {
-        fontName = std::string(faceName.begin(), faceName.end());
+        fontName = faceName;
     }
     wchar_t tmp[2] = {0};
     tmp[0] = text;
@@ -552,7 +543,7 @@ FPDF_LoadPageObject(FPDF_PAGE page, FPDF_PAGE_ITEM& pageObj, bool saveGlyphs) {
     for (int i = 0; i < textPage->CountChars(); i++) {
         FPDF_CHAR_ITEM charItem;
         FPDF_CHAR_INFO charInfo;
-        FPDF_CHAR_LIST faceName;
+        std::string faceName;
         textPage->GetCharInfo(i, &charInfo);
         FPDF_GetCharItem(charInfo, charItem, pPDFPage);
 
@@ -649,10 +640,7 @@ int FPDF_IterBookmarks(FPDF_DOCUMENT document, FPDF_BOOKMARK bookmark, std::vect
         }
 
         CPDF_Bookmark cbookmark(CPDFDictionaryFromFPDFBookmark(child));
-        std::wstring title = cbookmark.GetTitle().c_str();
-        item.title.clear();
-        item.title.reserve(title.size());
-        std::copy(title.begin(), title.end(), std::back_inserter(item.title));
+        item.title = cbookmark.GetTitle().c_str();
 
         index = FPDF_IterBookmarks(document, child, bookmarks, &item, item.index, index, level + 1);
         child = FPDFBookmark_GetNextSibling(document, child);

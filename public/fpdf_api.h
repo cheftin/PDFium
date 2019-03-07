@@ -107,9 +107,9 @@ typedef struct _FPDF_TEXT_ITEM_ {
     FPDF_EXPORT _FPDF_TEXT_ITEM_& operator=(const _FPDF_TEXT_ITEM_& other);
     FPDF_RECT bbox;
     FPDF_RECT clipBox;
-    FPDF_WCHAR_LIST text;
-    FPDF_CHAR_LIST familyName;
-    FPDF_CHAR_LIST faceName;
+    std::wstring text;
+    std::string familyName;
+    std::string faceName;
     int fontsize;
     int fontflags;
     int textMode;
@@ -171,7 +171,7 @@ typedef struct _FPDF_BOOKMARK_ITEM_ {
     int page;
     int level;
     FPDF_INT_LIST children;
-    FPDF_WCHAR_LIST title;
+    std::wstring title;
 } FPDF_BOOKMARK_ITEM;
 
 typedef struct _FPDF_BOOKMARKS_ITEM_ {

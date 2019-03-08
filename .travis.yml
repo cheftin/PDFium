@@ -1,4 +1,6 @@
 language: cpp
+# dist: trusty # use gcc 4.8 on linux, but it is not compatible with PDFium
+dist: Xenial # use gcc 5.4 on linux
 os:
     - linux
     - osx

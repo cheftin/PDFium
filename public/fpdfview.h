@@ -12,6 +12,10 @@
 
 // clang-format off
 
+#ifndef EXT_CHEFTIN
+#define EXT_CHEFTIN
+#endif
+
 #include <stddef.h>
 
 #if defined(_WIN32) && !defined(__WINDOWS__)

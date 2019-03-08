@@ -10,3 +10,6 @@ pdf_is_standalone = true
 # Static link to c++ library
 use_custom_libcxx = false
 # libcpp_is_static=true
+
+is_clang = false
+use_sysroot = false

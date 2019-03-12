@@ -417,11 +417,28 @@ TEST_F(CFGAS_FormatStringTest, NumParse) {
       {L"en", L"123.545,4", L"zzz.zzz,z", L"123.5454"},
   };
 
+  static const TestCase failures[] = {
+      // https://crbug.com/pdfium/1260
+      {L"en", L"..", L"VC", L"."},
+
+      // https://crbug.com/938626
+      {L"en", L"PDF", L"num( ", L"."},
+
+      // https://crbug.com/938724
+      {L"en", L"1", L" num.().().}", L"."},
+  };
+
   for (const auto& test : tests) {
     WideString result;
     EXPECT_TRUE(fmt(test.locale)->ParseNum(test.input, test.pattern, &result))
         << " TEST: " << test.input << ", " << test.pattern;
     EXPECT_STREQ(test.output, result.c_str())
+        << " TEST: " << test.input << ", " << test.pattern;
+  }
+
+  for (const auto& test : failures) {
+    WideString result;
+    EXPECT_FALSE(fmt(test.locale)->ParseNum(test.input, test.pattern, &result))
         << " TEST: " << test.input << ", " << test.pattern;
   }
 }
@@ -529,6 +546,8 @@ TEST_F(CFGAS_FormatStringTest, NumFormat) {
       {L"en", L"900000000000000000000", L"E", L"900,000,000,000,000,000,000"},
       // TODO(tsepez): next one seems wrong
       // {L"en", L".000000000000000000009", L"E", L"9"},
+      // https://crbug.com/938724
+      {L"en", L"1", L"| num.().().", L"1"},
   };
 
   for (const auto& test : tests) {

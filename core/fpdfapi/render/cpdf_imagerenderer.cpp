@@ -543,6 +543,7 @@ bool CPDF_ImageRenderer::Continue(PauseIndicatorIface* pPause) {
     case Mode::kTransform:
       return ContinueTransform(pPause);
   }
+  NOTREACHED();
   return false;
 }
 

@@ -913,10 +913,10 @@ FPDF_ExtractPageImageResources(FPDF_PAGE page, uint32_t& length)
     return data;
 }
 
-std::map<std::string, std::string> FPDF_GetSystemFonts() {
+void FPDF_GetSystemFonts(std::map<std::string, std::string> &fonts) {
     CFX_GEModule *module = CFX_GEModule::Get();
     CFX_FontMgr *mgr = module->GetFontMgr();
     CFX_FontMapper *mapper = mgr->GetBuiltinMapper();
     auto *info = mapper->GetSystemFontInfo();
-    return ((CFX_FolderFontInfo*)info)->GetFontList();
+    fonts = ((CFX_FolderFontInfo*)info)->GetFontList();
 }

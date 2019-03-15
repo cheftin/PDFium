@@ -79,7 +79,6 @@ class CFX_FolderFontInfo : public SystemFontInfoIface {
                  bool bMatchName);
 
   std::map<ByteString, std::unique_ptr<FontFaceInfo>> m_FontList;
-  std::map<ByteString, ByteString> m_ScanLog;
   std::vector<ByteString> m_PathList;
   UnownedPtr<CFX_FontMapper> m_pMapper;
 };

@@ -8,6 +8,7 @@
 #define CORE_FXGE_CFX_FOLDERFONTINFO_H_
 
 #include <map>
+#include <string>
 #include <memory>
 #include <vector>
 
@@ -43,6 +44,7 @@ class CFX_FolderFontInfo : public SystemFontInfoIface {
   void DeleteFont(void* hFont) override;
   bool GetFaceName(void* hFont, ByteString* name) override;
   bool GetFontCharset(void* hFont, int* charset) override;
+  std::map<std::string, std::string> GetFontList() const;
 
  protected:
   class FontFaceInfo {

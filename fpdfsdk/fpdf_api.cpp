@@ -37,6 +37,12 @@
 #include "core/fpdfapi/parser/cpdf_stream_acc.h"
 #include "core/fxcrt/fx_safe_types.h"
 #include "core/fxcrt/cfx_utf8encoder.h"
+#include "core/fxge/cfx_gemodule.h"
+#include "core/fxge/cfx_fontmgr.h"
+#include "core/fxge/cfx_fontmapper.h"
+#include "core/fxge/systemfontinfo_iface.h"
+#include "core/fxge/cfx_folderfontinfo.h"
+
 
 FPDF_EXPORT _FPDF_PNG_ENCODING_::_FPDF_PNG_ENCODING_() = default;
 FPDF_EXPORT _FPDF_PNG_ENCODING_::~_FPDF_PNG_ENCODING_() = default;
@@ -905,4 +911,12 @@ FPDF_ExtractPageImageResources(FPDF_PAGE page, uint32_t& length)
     }
     stream_vec.clear();
     return data;
+}
+
+std::map<std::string, std::string> FPDF_GetSystemFonts() {
+    CFX_GEModule *module = CFX_GEModule::Get();
+    CFX_FontMgr *mgr = module->GetFontMgr();
+    CFX_FontMapper *mapper = mgr->GetBuiltinMapper();
+    auto info = mapper->GetSystemFontInfo();
+    return ((CFX_FolderFontInfo*)info)->GetFontList();
 }

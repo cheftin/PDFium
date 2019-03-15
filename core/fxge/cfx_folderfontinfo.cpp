@@ -404,3 +404,16 @@ CFX_FolderFontInfo::FontFaceInfo::FontFaceInfo(ByteString filePath,
       m_FileSize(fileSize),
       m_Styles(0),
       m_Charsets(0) {}
+
+std::map<std::string, std::string> CFX_FolderFontInfo::GetFontList() const{
+    std::map<std::string, std::string> ret;
+    for(auto &p : m_FontList) {
+        std::string fontInfo;
+        fontInfo += p.second->m_FilePath.c_str();
+        fontInfo += ";";
+        fontInfo += p.second->m_FaceName.c_str();
+        fontInfo += ";";
+        ret[p.first.c_str()] = fontInfo;
+    }
+    return ret;
+}

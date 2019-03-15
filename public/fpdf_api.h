@@ -224,8 +224,8 @@ FPDF_ExtractPageContents(FPDF_PAGE page, uint32_t& length);
 FPDF_EXPORT uint8_t* FPDF_CALLCONV
 FPDF_ExtractPageImageResources(FPDF_PAGE page, uint32_t& length);
 
-FPDF_EXPORT std::map<std::string, std::string> FPDF_CALLCONV
-FPDF_GetSystemFonts();
+FPDF_EXPORT void FPDF_CALLCONV
+FPDF_GetSystemFonts(std::map<std::string, std::string>&);
 
 #ifdef __cplusplus
 }

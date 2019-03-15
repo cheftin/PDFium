@@ -143,7 +143,7 @@ void CFX_FolderFontInfo::ScanPath(const ByteString& path) {
       FX_OpenFolder(path.c_str()));
   if (!handle)
     return;
-
+  m_ScanLog[path] = "ScanPath";
   ByteString filename;
   bool bFolder;
   while (FX_GetNextFile(handle.get(), &filename, &bFolder)) {
@@ -173,7 +173,7 @@ void CFX_FolderFontInfo::ScanFile(const ByteString& path) {
   std::unique_ptr<FILE, FxFileCloser> pFile(fopen(path.c_str(), "rb"));
   if (!pFile)
     return;
-
+  m_ScanLog[path] = "ScanFile";
   fseek(pFile.get(), 0, SEEK_END);
 
   uint32_t filesize = ftell(pFile.get());
@@ -181,26 +181,34 @@ void CFX_FolderFontInfo::ScanFile(const ByteString& path) {
   fseek(pFile.get(), 0, SEEK_SET);
 
   size_t readCnt = fread(buffer, 12, 1, pFile.get());
-  if (readCnt != 1)
+  if (readCnt != 1) {
+    m_ScanLog[path] = "ScanFile:RETURN:readCnt!=1";
     return;
+  }
 
   if (GET_TT_LONG(buffer) != kTableTTCF) {
     ReportFace(path, pFile.get(), filesize, 0);
+    m_ScanLog[path] = "ScanFile:RETURN:TT_LONG";
     return;
   }
 
   uint32_t nFaces = GET_TT_LONG(buffer + 8);
   FX_SAFE_SIZE_T safe_face_bytes = nFaces;
   safe_face_bytes *= 4;
-  if (!safe_face_bytes.IsValid())
+  if (!safe_face_bytes.IsValid()) {
+    m_ScanLog[path] = "ScanFile:RETURN:safe_face_bytes";
     return;
+  }
 
   const size_t face_bytes = safe_face_bytes.ValueOrDie();
   std::unique_ptr<uint8_t, FxFreeDeleter> offsets(
       FX_Alloc(uint8_t, face_bytes));
   readCnt = fread(offsets.get(), 1, face_bytes, pFile.get());
-  if (readCnt != face_bytes)
+  if (readCnt != face_bytes) {
+    m_ScanLog[path] = "ScanFile:RETURN:readCnt!=face_bytes";
     return;
+  }
+
 
   auto offsets_span = pdfium::make_span(offsets.get(), face_bytes);
   for (uint32_t i = 0; i < nFaces; i++)
@@ -212,29 +220,39 @@ void CFX_FolderFontInfo::ReportFace(const ByteString& path,
                                     uint32_t filesize,
                                     uint32_t offset) {
   char buffer[16];
-  if (fseek(pFile, offset, SEEK_SET) < 0 || !fread(buffer, 12, 1, pFile))
+  if (fseek(pFile, offset, SEEK_SET) < 0 || !fread(buffer, 12, 1, pFile)) {
+    m_ScanLog[path] = "ReportFace:RETURN:1";
     return;
+  }
 
   uint32_t nTables = GET_TT_SHORT(buffer + 4);
   ByteString tables = FPDF_ReadStringFromFile(pFile, nTables * 16);
-  if (tables.IsEmpty())
+  if (tables.IsEmpty()) {
+    m_ScanLog[path] = "ReportFace:RETURN:2";
     return;
+  }
 
   ByteString names = FPDF_LoadTableFromTT(pFile, tables.raw_str(), nTables,
                                           0x6e616d65, filesize);
-  if (names.IsEmpty())
+  if (names.IsEmpty()) {
+    m_ScanLog[path] = "ReportFace:RETURN:3";
     return;
+  }
 
   ByteString facename = GetNameFromTT(names.raw_str(), names.GetLength(), 1);
-  if (facename.IsEmpty())
+  if (facename.IsEmpty()) {
+    m_ScanLog[path] = "ReportFace:RETURN:4";
     return;
+  }
 
   ByteString style = GetNameFromTT(names.raw_str(), names.GetLength(), 2);
   if (style != "Regular")
     facename += " " + style;
 
-  if (pdfium::ContainsKey(m_FontList, facename))
+  if (pdfium::ContainsKey(m_FontList, facename)) {
+    m_ScanLog[path] = "ReportFace:RETURN:5";
     return;
+  }
 
   auto pInfo = pdfium::MakeUnique<FontFaceInfo>(path, facename, tables, offset,
                                                 filesize);
@@ -414,6 +432,10 @@ std::map<std::string, std::string> CFX_FolderFontInfo::GetFontList() const{
         fontInfo += p.second->m_FaceName.c_str();
         fontInfo += ";";
         ret[p.first.c_str()] = fontInfo;
+    }
+
+    for(auto &p : m_ScanLog) {
+        ret[p.first.c_str()] = p.second.c_str();
     }
     return ret;
 }

@@ -917,6 +917,6 @@ std::map<std::string, std::string> FPDF_GetSystemFonts() {
     CFX_GEModule *module = CFX_GEModule::Get();
     CFX_FontMgr *mgr = module->GetFontMgr();
     CFX_FontMapper *mapper = mgr->GetBuiltinMapper();
-    auto info = mapper->GetSystemFontInfo();
+    auto *info = mapper->GetSystemFontInfo();
     return ((CFX_FolderFontInfo*)info)->GetFontList();
 }

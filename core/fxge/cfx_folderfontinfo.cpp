@@ -146,7 +146,7 @@ void CFX_FolderFontInfo::ScanPath(const ByteString& path) {
   m_ScanLog[path] = "ScanPath";
   ByteString filename;
   bool bFolder;
-  while (FX_GetNextFile(handle.get(), &filename, &bFolder)) {
+  while (FX_GetNextFile(handle.get(), path, &filename, &bFolder)) {
     if (bFolder) {
       if (filename == "." || filename == "..")
         continue;

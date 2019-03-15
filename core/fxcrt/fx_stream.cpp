@@ -128,6 +128,7 @@ FX_FileHandle* FX_OpenFolder(const char* path) {
 }
 
 bool FX_GetNextFile(FX_FileHandle* handle,
+                    ByteString parent,
                     ByteString* filename,
                     bool* bFolder) {
   if (!handle)
@@ -148,7 +149,14 @@ bool FX_GetNextFile(FX_FileHandle* handle,
   if (!de)
     return false;
   *filename = de->d_name;
-  *bFolder = de->d_type == DT_DIR;
+  ByteString fullpath = parent + "/" + *filename;
+  struct stat deInfo;
+  if (!stat(fullpath.c_str(), &deInfo)){
+      *bFolder = (deInfo.st_mode & S_IFDIR) == S_IFDIR;
+  } else {
+      *bFolder = false;
+  }
+  //*bFolder = de->d_type == DT_DIR;
   return true;
 #endif
 }

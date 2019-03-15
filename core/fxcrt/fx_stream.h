@@ -20,12 +20,15 @@ typedef CFindFileDataA FX_FileHandle;
 
 #include <dirent.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 typedef DIR FX_FileHandle;
 
 #endif  // _FX_PLATFORM_ == _FX_PLATFORM_WINDOWS_
 
 FX_FileHandle* FX_OpenFolder(const char* path);
-bool FX_GetNextFile(FX_FileHandle* handle, ByteString* filename, bool* bFolder);
+bool FX_GetNextFile(FX_FileHandle* handle, ByteString parent, ByteString* filename, bool* bFolder);
 void FX_CloseFolder(FX_FileHandle* handle);
 
 // Used with std::unique_ptr to automatically call FX_CloseFolder().

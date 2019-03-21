@@ -14,27 +14,26 @@ vars = {
 
   'android_ndk_revision': '4e2cea441bfd43f0863d14f57b1e1844260b9884',
   'binutils_revision': '2be73f7fbf783d7a0b288e174a5773b67c7656bc',
-  'build_revision': 'a721f3327e541ace0f6bfffa88b06e60b2766079',
+  'build_revision': 'e51ca1d98734b400979f9fe5695e2ef76f334a80',
   'buildtools_revision': '6fbda1b24c1893a893b17aa219b765b9e7c801d8',
   'catapult_revision': '7c1d51b169edfb62a3e2f88730f1182240cfe981',
-  'clang_revision': '257c91cc44b07bd06ff03dde809ccbc46a22bec6',
-  'code_coverage_revision': '16298755a926f419babc4a11ccfeae0035f48c3f',
-  'cygwin_revision': 'c89e446b273697fadf3a10ff1007a97c0b7de6df',
-  'depot_tools_revision': '06d1040fab75709fd0cbea3d3cbfa8774cb826f0',
+  'clang_revision': '207fd1e5dc049d231e12f4f0c8937b39ba549afb',
+  'code_coverage_revision': '0e34d1463558f5a32308d0808e04e85cfe95f4a4',
+  'depot_tools_revision': '3580425baa288b482c1fe2155c005736b7abc372',
   'freetype_revision': '31757f969fba60d75404f31e8f1168bef5011770',
-  'gtest_revision': '5ec7f0c4a113e2f18ac2c6cc7df51ad6afc24081',
-  'icu_revision': '07e7295d964399ee7bee16a3ac7ca5a053b2cf0a',
+  'gtest_revision': '8b6d3f9c4a774bef3081195d422993323b6bb2e0',
+  'icu_revision': '8c67416ccb4da42d817e7081ff83a2193b1aabe7',
   'instrumented_lib_revision': 'a959e4f0cb643003f2d75d179cede449979e3e77',
   'jinja2_revision': '45571de473282bd1d8b63a8dfcb1fd268d0635d2',
-  'jpeg_turbo_revision': '61a2bbaa9aec89cb2c882d87ace6aba9aee49bb9',
+  'jpeg_turbo_revision': '6dcdade8828297e306cabfdae80f3510f3f3eea2',
   'markupsafe_revision': '8f45f5cfa0009d2a70589bcda0349b8cb2b72783',
   'pdfium_tests_revision': '5a68e87859476eb75d3e068bd406c4921a6be8e2',
   'skia_revision': 'ea8900e74ea7d817ce49cc684aa49946dd659af1',
   'tools_memory_revision': 'f7b00daf4df7f6c469f5fbc68d7f40f6bd15d6e6',
-  'trace_event_revision': '211b3ed9d0481b4caddbee1322321b86a483ca1f',
-  'v8_revision': '73d4f6ca534f3016be4592a9ae0df22ccbcc42cc',
+  'trace_event_revision': '936ba8a963284a6b3737cf2f0474a7131073abee',
+  'v8_revision': '93306f1d7b2c10824e1e8876e5b8a3ab37c42b96',
   'yasm_source_revision': '720b70524a4424b15fc57e82263568c8ba0496ad',
-  'zlib_revision': 'e080c76be8c127cd977e49d64246fd98e67b35e6',
+  'zlib_revision': '1337da5314a9716c0653301cceeb835d17fd7ea4',
 }
 
 deps = {
@@ -121,10 +120,6 @@ deps_os = {
     "third_party/catapult":
       Var('chromium_git') + '/catapult.git' + '@' + Var('catapult_revision'),
   },
-  "win": {
-    "v8/third_party/cygwin":
-      Var('chromium_git') + "/chromium/deps/cygwin@" + Var('cygwin_revision'),
-  },
 }
 
 recursedeps = [
@@ -135,6 +130,7 @@ recursedeps = [
 include_rules = [
   # Basic stuff that everyone can use.
   # Note: public is not here because core cannot depend on public.
+  '+build/build_config.h',
   '+constants',
   '+testing',
   '+third_party/base',

@@ -111,7 +111,7 @@ bool IFX_SeekableStream::WriteString(ByteStringView str) {
   return WriteBlock(str.unterminated_c_str(), str.GetLength());
 }
 
-FX_FileHandle* FX_OpenFolder(const char* path) {
+FX_FolderHandle* FX_OpenFolder(const char* path) {
 #if _FX_PLATFORM_ == _FX_PLATFORM_WINDOWS_
   auto pData = pdfium::MakeUnique<CFindFileDataA>();
   pData->m_Handle =
@@ -123,12 +123,17 @@ FX_FileHandle* FX_OpenFolder(const char* path) {
   pData->m_bEnd = false;
   return pData.release();
 #else
-  return opendir(path);
+  DIR* dir = opendir(path);
+  if (!dir)
+    return nullptr;
+  auto handle = pdfium::MakeUnique<FX_FolderHandle>();
+  handle->m_Path = path;
+  handle->m_Dir = dir;
+  return handle.release();
 #endif
 }
 
-bool FX_GetNextFile(FX_FileHandle* handle,
-                    ByteString parent,
+bool FX_GetNextFile(FX_FolderHandle* handle,
                     ByteString* filename,
                     bool* bFolder) {
   if (!handle)
@@ -145,30 +150,28 @@ bool FX_GetNextFile(FX_FileHandle* handle,
     handle->m_bEnd = true;
   return true;
 #else
-  struct dirent* de = readdir(handle);
+  struct dirent* de = readdir(handle->m_Dir);
   if (!de)
     return false;
+  ByteString fullpath = handle->m_Path + "/" + de->d_name;
+  struct stat deStat;
+  if (stat(fullpath.c_str(), &deStat) < 0)
+    return false;
+
   *filename = de->d_name;
-  ByteString fullpath = parent + "/" + *filename;
-  struct stat deInfo;
-  if (!stat(fullpath.c_str(), &deInfo)){
-      *bFolder = (deInfo.st_mode & S_IFDIR) == S_IFDIR;
-  } else {
-      *bFolder = false;
-  }
-  //*bFolder = de->d_type == DT_DIR;
+  *bFolder = S_ISDIR(deStat.st_mode);
   return true;
 #endif
 }
 
-void FX_CloseFolder(FX_FileHandle* handle) {
+void FX_CloseFolder(FX_FolderHandle* handle) {
   if (!handle)
     return;
 
 #if _FX_PLATFORM_ == _FX_PLATFORM_WINDOWS_
   FindClose(handle->m_Handle);
-  delete handle;
 #else
-  closedir(handle);
+  closedir(handle->m_Dir);
 #endif
+  delete handle;
 }

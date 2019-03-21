@@ -14,7 +14,7 @@
 #include "third_party/base/ptr_util.h"
 #include "third_party/base/span.h"
 #include "third_party/base/stl_util.h"
-#include "xfa/fgas/crt/cfgas_formatstring.h"
+#include "xfa/fgas/crt/cfgas_stringformatter.h"
 #include "xfa/fxfa/parser/cxfa_document.h"
 #include "xfa/fxfa/parser/cxfa_localemgr.h"
 #include "xfa/fxfa/parser/xfa_utils.h"
@@ -127,71 +127,68 @@ bool CXFA_LocaleValue::ValidateValue(const WideString& wsValue,
   if (!m_pLocaleMgr)
     return false;
 
-  WideString wsOutput;
   ScopedLocale scoped_locale(m_pLocaleMgr.Get(), pLocale);
+  std::vector<WideString> wsPatterns =
+      CFGAS_StringFormatter::SplitOnBars(wsPattern);
 
-  auto pFormat = pdfium::MakeUnique<CFGAS_FormatString>(m_pLocaleMgr.Get());
-  std::vector<WideString> wsPatterns;
-  pFormat->SplitFormatString(wsPattern, &wsPatterns);
-
+  WideString wsOutput;
   bool bRet = false;
   size_t i = 0;
   for (; !bRet && i < wsPatterns.size(); i++) {
     const WideString& wsFormat = wsPatterns[i];
-    switch (ValueCategory(pFormat->GetCategory(wsFormat), m_dwType)) {
+    auto pFormat =
+        pdfium::MakeUnique<CFGAS_StringFormatter>(m_pLocaleMgr.Get(), wsFormat);
+    switch (ValueCategory(pFormat->GetCategory(), m_dwType)) {
       case FX_LOCALECATEGORY_Null:
-        bRet = pFormat->ParseNull(wsValue, wsFormat);
+        bRet = pFormat->ParseNull(wsValue);
         if (!bRet)
           bRet = wsValue.IsEmpty();
         break;
       case FX_LOCALECATEGORY_Zero:
-        bRet = pFormat->ParseZero(wsValue, wsFormat);
+        bRet = pFormat->ParseZero(wsValue);
         if (!bRet)
           bRet = wsValue.EqualsASCII("0");
         break;
       case FX_LOCALECATEGORY_Num: {
         WideString fNum;
-        bRet = pFormat->ParseNum(wsValue, wsFormat, &fNum);
+        bRet = pFormat->ParseNum(wsValue, &fNum);
         if (!bRet)
-          bRet = pFormat->FormatNum(wsValue, wsFormat, &wsOutput);
+          bRet = pFormat->FormatNum(wsValue, &wsOutput);
         break;
       }
       case FX_LOCALECATEGORY_Text:
-        bRet = pFormat->ParseText(wsValue, wsFormat, &wsOutput);
+        bRet = pFormat->ParseText(wsValue, &wsOutput);
         wsOutput.clear();
         if (!bRet)
-          bRet = pFormat->FormatText(wsValue, wsFormat, &wsOutput);
+          bRet = pFormat->FormatText(wsValue, &wsOutput);
         break;
       case FX_LOCALECATEGORY_Date: {
         CFX_DateTime dt;
         bRet = ValidateCanonicalDate(wsValue, &dt);
         if (!bRet) {
-          bRet = pFormat->ParseDateTime(wsValue, wsFormat, FX_DATETIMETYPE_Date,
-                                        &dt);
+          bRet = pFormat->ParseDateTime(wsValue, FX_DATETIMETYPE_Date, &dt);
           if (!bRet) {
-            bRet = pFormat->FormatDateTime(wsValue, wsFormat,
-                                           FX_DATETIMETYPE_Date, &wsOutput);
+            bRet = pFormat->FormatDateTime(wsValue, FX_DATETIMETYPE_Date,
+                                           &wsOutput);
           }
         }
         break;
       }
       case FX_LOCALECATEGORY_Time: {
         CFX_DateTime dt;
-        bRet = pFormat->ParseDateTime(wsValue, wsFormat, FX_DATETIMETYPE_Time,
-                                      &dt);
+        bRet = pFormat->ParseDateTime(wsValue, FX_DATETIMETYPE_Time, &dt);
         if (!bRet) {
-          bRet = pFormat->FormatDateTime(wsValue, wsFormat,
-                                         FX_DATETIMETYPE_Time, &wsOutput);
+          bRet =
+              pFormat->FormatDateTime(wsValue, FX_DATETIMETYPE_Time, &wsOutput);
         }
         break;
       }
       case FX_LOCALECATEGORY_DateTime: {
         CFX_DateTime dt;
-        bRet = pFormat->ParseDateTime(wsValue, wsFormat,
-                                      FX_DATETIMETYPE_DateTime, &dt);
+        bRet = pFormat->ParseDateTime(wsValue, FX_DATETIMETYPE_DateTime, &dt);
         if (!bRet) {
-          bRet = pFormat->FormatDateTime(wsValue, wsFormat,
-                                         FX_DATETIMETYPE_DateTime, &wsOutput);
+          bRet = pFormat->FormatDateTime(wsValue, FX_DATETIMETYPE_DateTime,
+                                         &wsOutput);
         }
         break;
       }
@@ -262,11 +259,8 @@ bool CXFA_LocaleValue::FormatPatterns(WideString& wsResult,
                                       const WideString& wsFormat,
                                       LocaleIface* pLocale,
                                       XFA_VALUEPICTURE eValueType) const {
-  auto pFormat = pdfium::MakeUnique<CFGAS_FormatString>(m_pLocaleMgr.Get());
-  std::vector<WideString> wsPatterns;
-  pFormat->SplitFormatString(wsFormat, &wsPatterns);
   wsResult.clear();
-  for (const auto& pattern : wsPatterns) {
+  for (const auto& pattern : CFGAS_StringFormatter::SplitOnBars(wsFormat)) {
     if (FormatSinglePattern(wsResult, pattern, pLocale, eValueType))
       return true;
   }
@@ -284,35 +278,35 @@ bool CXFA_LocaleValue::FormatSinglePattern(WideString& wsResult,
 
   wsResult.clear();
   bool bRet = false;
-  auto pFormat = pdfium::MakeUnique<CFGAS_FormatString>(m_pLocaleMgr.Get());
-  FX_LOCALECATEGORY eCategory =
-      ValueCategory(pFormat->GetCategory(wsFormat), m_dwType);
+  auto pFormat =
+      pdfium::MakeUnique<CFGAS_StringFormatter>(m_pLocaleMgr.Get(), wsFormat);
+  FX_LOCALECATEGORY eCategory = ValueCategory(pFormat->GetCategory(), m_dwType);
   switch (eCategory) {
     case FX_LOCALECATEGORY_Null:
       if (m_wsValue.IsEmpty())
-        bRet = pFormat->FormatNull(wsFormat, &wsResult);
+        bRet = pFormat->FormatNull(&wsResult);
       break;
     case FX_LOCALECATEGORY_Zero:
       if (m_wsValue.EqualsASCII("0"))
-        bRet = pFormat->FormatZero(wsFormat, &wsResult);
+        bRet = pFormat->FormatZero(&wsResult);
       break;
     case FX_LOCALECATEGORY_Num:
-      bRet = pFormat->FormatNum(m_wsValue, wsFormat, &wsResult);
+      bRet = pFormat->FormatNum(m_wsValue, &wsResult);
       break;
     case FX_LOCALECATEGORY_Text:
-      bRet = pFormat->FormatText(m_wsValue, wsFormat, &wsResult);
+      bRet = pFormat->FormatText(m_wsValue, &wsResult);
       break;
     case FX_LOCALECATEGORY_Date:
-      bRet = pFormat->FormatDateTime(m_wsValue, wsFormat, FX_DATETIMETYPE_Date,
-                                     &wsResult);
+      bRet =
+          pFormat->FormatDateTime(m_wsValue, FX_DATETIMETYPE_Date, &wsResult);
       break;
     case FX_LOCALECATEGORY_Time:
-      bRet = pFormat->FormatDateTime(m_wsValue, wsFormat, FX_DATETIMETYPE_Time,
-                                     &wsResult);
+      bRet =
+          pFormat->FormatDateTime(m_wsValue, FX_DATETIMETYPE_Time, &wsResult);
       break;
     case FX_LOCALECATEGORY_DateTime:
-      bRet = pFormat->FormatDateTime(m_wsValue, wsFormat,
-                                     FX_DATETIMETYPE_DateTime, &wsResult);
+      bRet = pFormat->FormatDateTime(m_wsValue, FX_DATETIMETYPE_DateTime,
+                                     &wsResult);
       break;
     default:
       wsResult = m_wsValue;
@@ -546,41 +540,41 @@ bool CXFA_LocaleValue::ParsePatternValue(const WideString& wsValue,
   if (!m_pLocaleMgr)
     return false;
 
-  ScopedLocale scoped_locale(m_pLocaleMgr.Get(), pLocale);
+  std::vector<WideString> wsPatterns =
+      CFGAS_StringFormatter::SplitOnBars(wsPattern);
 
-  auto pFormat = pdfium::MakeUnique<CFGAS_FormatString>(m_pLocaleMgr.Get());
-  std::vector<WideString> wsPatterns;
-  pFormat->SplitFormatString(wsPattern, &wsPatterns);
+  ScopedLocale scoped_locale(m_pLocaleMgr.Get(), pLocale);
   bool bRet = false;
   for (size_t i = 0; !bRet && i < wsPatterns.size(); i++) {
     const WideString& wsFormat = wsPatterns[i];
-    switch (ValueCategory(pFormat->GetCategory(wsFormat), m_dwType)) {
+    auto pFormat =
+        pdfium::MakeUnique<CFGAS_StringFormatter>(m_pLocaleMgr.Get(), wsFormat);
+    switch (ValueCategory(pFormat->GetCategory(), m_dwType)) {
       case FX_LOCALECATEGORY_Null:
-        bRet = pFormat->ParseNull(wsValue, wsFormat);
+        bRet = pFormat->ParseNull(wsValue);
         if (bRet)
           m_wsValue.clear();
         break;
       case FX_LOCALECATEGORY_Zero:
-        bRet = pFormat->ParseZero(wsValue, wsFormat);
+        bRet = pFormat->ParseZero(wsValue);
         if (bRet)
           m_wsValue = L"0";
         break;
       case FX_LOCALECATEGORY_Num: {
         WideString fNum;
-        bRet = pFormat->ParseNum(wsValue, wsFormat, &fNum);
+        bRet = pFormat->ParseNum(wsValue, &fNum);
         if (bRet)
           m_wsValue = std::move(fNum);
         break;
       }
       case FX_LOCALECATEGORY_Text:
-        bRet = pFormat->ParseText(wsValue, wsFormat, &m_wsValue);
+        bRet = pFormat->ParseText(wsValue, &m_wsValue);
         break;
       case FX_LOCALECATEGORY_Date: {
         CFX_DateTime dt;
         bRet = ValidateCanonicalDate(wsValue, &dt);
         if (!bRet) {
-          bRet = pFormat->ParseDateTime(wsValue, wsFormat, FX_DATETIMETYPE_Date,
-                                        &dt);
+          bRet = pFormat->ParseDateTime(wsValue, FX_DATETIMETYPE_Date, &dt);
         }
         if (bRet)
           SetDate(dt);
@@ -588,16 +582,14 @@ bool CXFA_LocaleValue::ParsePatternValue(const WideString& wsValue,
       }
       case FX_LOCALECATEGORY_Time: {
         CFX_DateTime dt;
-        bRet = pFormat->ParseDateTime(wsValue, wsFormat, FX_DATETIMETYPE_Time,
-                                      &dt);
+        bRet = pFormat->ParseDateTime(wsValue, FX_DATETIMETYPE_Time, &dt);
         if (bRet)
           SetTime(dt);
         break;
       }
       case FX_LOCALECATEGORY_DateTime: {
         CFX_DateTime dt;
-        bRet = pFormat->ParseDateTime(wsValue, wsFormat,
-                                      FX_DATETIMETYPE_DateTime, &dt);
+        bRet = pFormat->ParseDateTime(wsValue, FX_DATETIMETYPE_DateTime, &dt);
         if (bRet)
           SetDateTime(dt);
         break;

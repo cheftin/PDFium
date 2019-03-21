@@ -62,7 +62,7 @@ class CPDF_PathObject final : public CPDF_PageObject {
   const CFX_Matrix& matrix() const { return m_Matrix; }
   void set_matrix(const CFX_Matrix& matrix) { m_Matrix = matrix; }
 
-// private:
+ private:
   bool m_bStroke = false;
   CFX_FillRenderOptions::FillType m_FillType =
       CFX_FillRenderOptions::FillType::kNoFill;

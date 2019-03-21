@@ -277,11 +277,11 @@ void FPDF_GetCharItem(FPDF_CHAR_INFO& charInfo, FPDF_CHAR_ITEM& charItem, CPDF_P
 void FPDF_GetPathItem(CPDF_PathObject* pPathObj, FPDF_PATH_ITEM& pathItem) {
     FPDF_GetPageObjectBBox(pPathObj, pathItem.bbox);
 
-    pathItem.fillType = pPathObj->m_FillType;
-    pathItem.isStroke = pPathObj->m_bStroke;
+    pathItem.fillType = pPathObj->filltype();
+    pathItem.isStroke = pPathObj->stroke();
     pathItem.width = pPathObj->m_GraphState.GetLineWidth();
-    pathItem.isRect = pPathObj->m_Path.IsRect();
-    pPathObj->m_Path.Transform(pPathObj->m_Matrix);
+    pathItem.isRect = pPathObj->path().IsRect();
+    pPathObj->path().Transform(pPathObj->matrix());
     if (pPathObj->m_ClipPath.HasRef()) {
         CFX_FloatRect rect = pPathObj->m_ClipPath.GetClipBox();
         pathItem.clipBox.left = rect.left;
@@ -295,7 +295,7 @@ void FPDF_GetPathItem(CPDF_PathObject* pPathObj, FPDF_PATH_ITEM& pathItem) {
         pathItem.clipBox.bottom = 0.0;
     }
 
-    for (const FX_PATHPOINT& point : pPathObj->m_Path.GetPoints()) {
+    for (const FX_PATHPOINT& point : pPathObj->path().GetPoints()) {
         FPDF_POINT pointItem;
         pointItem.x = point.m_Point.x;
         pointItem.y = point.m_Point.y;

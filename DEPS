@@ -15,8 +15,8 @@ vars = {
   'android_ndk_revision': '4e2cea441bfd43f0863d14f57b1e1844260b9884',
   'binutils_revision': '2be73f7fbf783d7a0b288e174a5773b67c7656bc',
   'build_revision': 'e51ca1d98734b400979f9fe5695e2ef76f334a80',
-  'buildtools_revision': '6fbda1b24c1893a893b17aa219b765b9e7c801d8',
-  'catapult_revision': '7c1d51b169edfb62a3e2f88730f1182240cfe981',
+  'buildtools_revision': '62f9eb0d64d6bf48f620b8233d9f7a1dc07f8414',
+  'catapult_revision': 'ec795debc5c195658e95f5e750f6c0895c8171f2',
   'clang_revision': '207fd1e5dc049d231e12f4f0c8937b39ba549afb',
   'code_coverage_revision': '0e34d1463558f5a32308d0808e04e85cfe95f4a4',
   'depot_tools_revision': '3580425baa288b482c1fe2155c005736b7abc372',
@@ -25,7 +25,7 @@ vars = {
   'icu_revision': '8c67416ccb4da42d817e7081ff83a2193b1aabe7',
   'instrumented_lib_revision': 'a959e4f0cb643003f2d75d179cede449979e3e77',
   'jinja2_revision': '45571de473282bd1d8b63a8dfcb1fd268d0635d2',
-  'jpeg_turbo_revision': '6dcdade8828297e306cabfdae80f3510f3f3eea2',
+  'jpeg_turbo_revision': '61a2bbaa9aec89cb2c882d87ace6aba9aee49bb9',
   'markupsafe_revision': '8f45f5cfa0009d2a70589bcda0349b8cb2b72783',
   'pdfium_tests_revision': '5a68e87859476eb75d3e068bd406c4921a6be8e2',
   'skia_revision': 'ea8900e74ea7d817ce49cc684aa49946dd659af1',
@@ -45,15 +45,25 @@ deps = {
     Var('chromium_git') + "/chromium/src/build.git@" + Var('build_revision'),
 
   "buildtools":
-    Var('chromium_git') + "/chromium/buildtools.git@" +
+    Var('chromium_git') + "/chromium/src/buildtools.git@" +
         Var('buildtools_revision'),
 
   "testing/corpus":
     Var('pdfium_git') + "/pdfium_tests@" + Var('pdfium_tests_revision'),
 
+  "third_party/android_ndk": {
+    'url': Var('chromium_git') + "/android_ndk.git@" + Var('android_ndk_revision'),
+    'condition': 'checkout_android',
+  },
+
   "third_party/binutils":
     Var('chromium_git') + "/chromium/src/third_party/binutils.git@" +
         Var('binutils_revision'),
+
+  "third_party/catapult": {
+    'url': Var('chromium_git') + '/catapult.git' + '@' + Var('catapult_revision'),
+    'condition': 'checkout_android',
+  },
 
   'third_party/depot_tools':
     Var('chromium_git') + '/chromium/tools/depot_tools.git' + '@' +
@@ -111,15 +121,6 @@ deps = {
 
   "v8":
     Var('chromium_git') + "/v8/v8.git@" + Var('v8_revision'),
-}
-
-deps_os = {
-  "android": {
-    "third_party/android_ndk":
-      Var('chromium_git') + "/android_ndk.git@" + Var('android_ndk_revision'),
-    "third_party/catapult":
-      Var('chromium_git') + '/catapult.git' + '@' + Var('catapult_revision'),
-  },
 }
 
 recursedeps = [

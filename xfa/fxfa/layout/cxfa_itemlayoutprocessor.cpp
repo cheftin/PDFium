@@ -1692,18 +1692,18 @@ CXFA_ItemLayoutProcessor::DoLayoutFlowedContainer(
             fContentCalculatedHeight -= item->m_sSize.height;
           }
 
-          CXFA_Node* pLeaderNode = nullptr;
-          CXFA_Node* pTrailerNode = nullptr;
-          bool bCreatePage = false;
-          if (!bUseBreakControl || !m_pPageMgr ||
-              !m_pPageMgr->ProcessBreakBeforeOrAfter(m_pCurChildNode, true,
-                                                     pLeaderNode, pTrailerNode,
-                                                     bCreatePage) ||
-              GetFormNode()->GetElementType() == XFA_Element::Form ||
-              !bCreatePage) {
+          if (!bUseBreakControl || !m_pPageMgr)
+            break;
+
+          Optional<CXFA_LayoutPageMgr::BreakData> break_data =
+              m_pPageMgr->ProcessBreakBefore(m_pCurChildNode);
+          if (!break_data.has_value() || !break_data.value().bCreatePage ||
+              GetFormNode()->GetElementType() == XFA_Element::Form) {
             break;
           }
 
+          CXFA_Node* pLeaderNode = break_data.value().pLeader;
+          CXFA_Node* pTrailerNode = break_data.value().pTrailer;
           if (JudgeLeaderOrTrailerForOccur(pLeaderNode))
             AddPendingNode(pLeaderNode, true);
 
@@ -1731,17 +1731,19 @@ CXFA_ItemLayoutProcessor::DoLayoutFlowedContainer(
           goto SuspendAndCreateNewRow;
         }
         case Stage::kBreakAfter: {
-          CXFA_Node* pLeaderNode = nullptr;
-          CXFA_Node* pTrailerNode = nullptr;
-          bool bCreatePage = false;
-          if (!bUseBreakControl || !m_pPageMgr ||
-              !m_pPageMgr->ProcessBreakBeforeOrAfter(m_pCurChildNode, false,
-                                                     pLeaderNode, pTrailerNode,
-                                                     bCreatePage) ||
+          if (!bUseBreakControl || !m_pPageMgr)
+            break;
+
+          Optional<CXFA_LayoutPageMgr::BreakData> break_data =
+              m_pPageMgr->ProcessBreakAfter(m_pCurChildNode);
+          if (!break_data.has_value() ||
               GetFormNode()->GetElementType() == XFA_Element::Form) {
             break;
           }
 
+          CXFA_Node* pLeaderNode = break_data.value().pLeader;
+          CXFA_Node* pTrailerNode = break_data.value().pTrailer;
+          bool bCreatePage = break_data.value().bCreatePage;
           if (JudgeLeaderOrTrailerForOccur(pTrailerNode)) {
             auto pTempProcessor = pdfium::MakeUnique<CXFA_ItemLayoutProcessor>(
                 pTrailerNode, nullptr);
@@ -1787,13 +1789,15 @@ CXFA_ItemLayoutProcessor::DoLayoutFlowedContainer(
           goto SuspendAndCreateNewRow;
         }
         case Stage::kBookendLeader: {
-          CXFA_Node* pLeaderNode = nullptr;
           if (m_pCurChildPreprocessor) {
             pProcessor = std::move(m_pCurChildPreprocessor);
-          } else if (m_pPageMgr && m_pPageMgr->ProcessBookendLeaderOrTrailer(
-                                       m_pCurChildNode, true, pLeaderNode)) {
-            pProcessor = pdfium::MakeUnique<CXFA_ItemLayoutProcessor>(
-                pLeaderNode, m_pPageMgr.Get());
+          } else if (m_pPageMgr) {
+            CXFA_Node* pLeaderNode =
+                m_pPageMgr->ProcessBookendLeader(m_pCurChildNode);
+            if (pLeaderNode) {
+              pProcessor = pdfium::MakeUnique<CXFA_ItemLayoutProcessor>(
+                  pLeaderNode, m_pPageMgr.Get());
+            }
           }
 
           if (pProcessor) {
@@ -1813,13 +1817,15 @@ CXFA_ItemLayoutProcessor::DoLayoutFlowedContainer(
           break;
         }
         case Stage::kBookendTrailer: {
-          CXFA_Node* pTrailerNode = nullptr;
           if (m_pCurChildPreprocessor) {
             pProcessor = std::move(m_pCurChildPreprocessor);
-          } else if (m_pPageMgr && m_pPageMgr->ProcessBookendLeaderOrTrailer(
-                                       m_pCurChildNode, false, pTrailerNode)) {
-            pProcessor = pdfium::MakeUnique<CXFA_ItemLayoutProcessor>(
-                pTrailerNode, m_pPageMgr.Get());
+          } else if (m_pPageMgr) {
+            CXFA_Node* pTrailerNode =
+                m_pPageMgr->ProcessBookendTrailer(m_pCurChildNode);
+            if (pTrailerNode) {
+              pProcessor = pdfium::MakeUnique<CXFA_ItemLayoutProcessor>(
+                  pTrailerNode, m_pPageMgr.Get());
+            }
           }
           if (pProcessor) {
             if (InsertFlowedItem(pProcessor.get(), bContainerWidthAutoSize,
@@ -2457,8 +2463,11 @@ CXFA_ItemLayoutProcessor::Result CXFA_ItemLayoutProcessor::InsertFlowedItem(
       pFormNode = pLayoutContext->m_pOverflowNode.Get();
       bUseInherited = true;
     }
-    if (m_pPageMgr->ProcessOverflow(pFormNode, pOverflowLeaderNode,
-                                    pOverflowTrailerNode, false, false)) {
+    Optional<CXFA_LayoutPageMgr::OverflowData> overflow_data =
+        m_pPageMgr->ProcessOverflow(pFormNode, false);
+    if (overflow_data.has_value()) {
+      pOverflowLeaderNode = overflow_data.value().pLeader;
+      pOverflowTrailerNode = overflow_data.value().pTrailer;
       if (pProcessor->JudgeLeaderOrTrailerForOccur(pOverflowTrailerNode)) {
         if (pOverflowTrailerNode) {
           auto pOverflowLeaderProcessor =
@@ -2489,14 +2498,14 @@ CXFA_ItemLayoutProcessor::Result CXFA_ItemLayoutProcessor::InsertFlowedItem(
       (!bContainerHeightAutoSize &&
        m_fUsedSize + fAvailHeight + kXFALayoutPrecision >= fContainerHeight)) {
     if (!bTakeSpace || eRetValue == Result::kDone) {
-      if (pProcessor->m_bUseInheriated) {
+      if (pProcessor->m_bUseInherited) {
         if (pTrailerLayoutItem)
           pProcessor->AddTrailerBeforeSplit(childSize.height,
                                             pTrailerLayoutItem, false);
         if (pProcessor->JudgeLeaderOrTrailerForOccur(pOverflowLeaderNode))
           pProcessor->AddPendingNode(pOverflowLeaderNode, false);
 
-        pProcessor->m_bUseInheriated = false;
+        pProcessor->m_bUseInherited = false;
       } else {
         if (bIsAddTrailerHeight)
           childSize.height -= pTrailerLayoutItem->m_sSize.height;
@@ -2525,7 +2534,7 @@ CXFA_ItemLayoutProcessor::Result CXFA_ItemLayoutProcessor::InsertFlowedItem(
     }
 
     if (eRetValue == Result::kPageFullBreak) {
-      if (pProcessor->m_bUseInheriated) {
+      if (pProcessor->m_bUseInherited) {
         if (pTrailerLayoutItem) {
           pProcessor->AddTrailerBeforeSplit(childSize.height,
                                             pTrailerLayoutItem, false);
@@ -2533,7 +2542,7 @@ CXFA_ItemLayoutProcessor::Result CXFA_ItemLayoutProcessor::InsertFlowedItem(
         if (pProcessor->JudgeLeaderOrTrailerForOccur(pOverflowLeaderNode))
           pProcessor->AddPendingNode(pOverflowLeaderNode, false);
 
-        pProcessor->m_bUseInheriated = false;
+        pProcessor->m_bUseInherited = false;
       } else {
         if (bIsAddTrailerHeight)
           childSize.height -= pTrailerLayoutItem->m_sSize.height;
@@ -2577,12 +2586,9 @@ CXFA_ItemLayoutProcessor::Result CXFA_ItemLayoutProcessor::InsertFlowedItem(
       return Result::kPageFullBreak;
     }
 
-    CXFA_Node* pTempLeaderNode = nullptr;
-    CXFA_Node* pTempTrailerNode = nullptr;
-    if (m_pPageMgr && !pProcessor->m_bUseInheriated &&
+    if (m_pPageMgr && !pProcessor->m_bUseInherited &&
         eRetValue != Result::kPageFullBreak) {
-      m_pPageMgr->ProcessOverflow(pFormNode, pTempLeaderNode, pTempTrailerNode,
-                                  false, true);
+      m_pPageMgr->ProcessOverflow(pFormNode, true);
     }
     if (pTrailerLayoutItem && bIsAddTrailerHeight) {
       pProcessor->AddTrailerBeforeSplit(fSplitPos, pTrailerLayoutItem,
@@ -2595,7 +2601,7 @@ CXFA_ItemLayoutProcessor::Result CXFA_ItemLayoutProcessor::InsertFlowedItem(
       pProcessor->ProcessUnUseOverFlow(pOverflowLeaderNode,
                                        pOverflowTrailerNode, pTrailerLayoutItem,
                                        pFormNode);
-      m_bUseInheriated = true;
+      m_bUseInherited = true;
     } else {
       CXFA_LayoutItem* firstChild = pProcessor->m_pLayoutItem->GetFirstChild();
       if (firstChild && !firstChild->GetNextSibling() &&
@@ -2625,20 +2631,17 @@ CXFA_ItemLayoutProcessor::Result CXFA_ItemLayoutProcessor::InsertFlowedItem(
   if (*fContentCurRowY <= kXFALayoutPrecision) {
     childSize = pProcessor->GetCurrentComponentSize();
     if (pProcessor->m_pPageMgr->GetNextAvailContentHeight(childSize.height)) {
-      CXFA_Node* pTempLeaderNode = nullptr;
-      CXFA_Node* pTempTrailerNode = nullptr;
       if (m_pPageMgr) {
         if (!pFormNode && pLayoutContext)
           pFormNode = pLayoutContext->m_pOverflowProcessor->GetFormNode();
 
-        m_pPageMgr->ProcessOverflow(pFormNode, pTempLeaderNode,
-                                    pTempTrailerNode, false, true);
+        m_pPageMgr->ProcessOverflow(pFormNode, true);
       }
       if (bUseInherited) {
         pProcessor->ProcessUnUseOverFlow(pOverflowLeaderNode,
                                          pOverflowTrailerNode,
                                          pTrailerLayoutItem, pFormNode);
-        m_bUseInheriated = true;
+        m_bUseInherited = true;
       }
       return Result::kPageFullBreak;
     }
@@ -2660,8 +2663,12 @@ CXFA_ItemLayoutProcessor::Result CXFA_ItemLayoutProcessor::InsertFlowedItem(
   if (pProcessor->GetFormNode()->GetIntact() == XFA_AttributeValue::None &&
       eLayout == XFA_AttributeValue::Tb) {
     if (m_pPageMgr) {
-      m_pPageMgr->ProcessOverflow(pFormNode, pOverflowLeaderNode,
-                                  pOverflowTrailerNode, false, true);
+      Optional<CXFA_LayoutPageMgr::OverflowData> overflow_data =
+          m_pPageMgr->ProcessOverflow(pFormNode, true);
+      if (overflow_data.has_value()) {
+        pOverflowLeaderNode = overflow_data.value().pLeader;
+        pOverflowTrailerNode = overflow_data.value().pTrailer;
+      }
     }
     if (pTrailerLayoutItem)
       pProcessor->AddTrailerBeforeSplit(fSplitPos, pTrailerLayoutItem, false);
@@ -2677,13 +2684,17 @@ CXFA_ItemLayoutProcessor::Result CXFA_ItemLayoutProcessor::InsertFlowedItem(
   if (!pFormNode && pLayoutContext)
     pFormNode = pLayoutContext->m_pOverflowProcessor->GetFormNode();
   if (m_pPageMgr) {
-    m_pPageMgr->ProcessOverflow(pFormNode, pOverflowLeaderNode,
-                                pOverflowTrailerNode, false, true);
+    Optional<CXFA_LayoutPageMgr::OverflowData> overflow_data =
+        m_pPageMgr->ProcessOverflow(pFormNode, true);
+    if (overflow_data.has_value()) {
+      pOverflowLeaderNode = overflow_data.value().pLeader;
+      pOverflowTrailerNode = overflow_data.value().pTrailer;
+    }
   }
   if (bUseInherited) {
     pProcessor->ProcessUnUseOverFlow(pOverflowLeaderNode, pOverflowTrailerNode,
                                      pTrailerLayoutItem, pFormNode);
-    m_bUseInheriated = true;
+    m_bUseInherited = true;
   }
   return Result::kPageFullBreak;
 }

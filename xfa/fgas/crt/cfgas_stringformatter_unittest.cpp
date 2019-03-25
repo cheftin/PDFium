@@ -189,6 +189,36 @@ TEST_F(CFGAS_StringFormatterTest, DateTimeFormat) {
        L"At 10:30 GMT on Jul 16, 1999"},
       {L"en", L"1999-07-16T10:30Z",
        L"time{'At 'HH:MM Z}date{' on 'MMM DD, YYYY}",
+       L"At 10:30 GMT on Jul 16, 1999"},
+      {L"en", L"9111T1111:", L"MMM D, YYYYTh:MM:SS A",
+       L"Jan 1, 9111 11:11:00 AM"}};
+
+  for (size_t i = 0; i < FX_ArraySize(tests); ++i) {
+    WideString result;
+    EXPECT_TRUE(fmt(tests[i].locale, tests[i].pattern)
+                    ->FormatDateTime(tests[i].input, FX_DATETIMETYPE_DateTime,
+                                     &result));
+    EXPECT_STREQ(tests[i].output, result.c_str()) << " TEST: " << i;
+  }
+}
+
+TEST_F(CFGAS_StringFormatterTest, TimeDateFormat) {
+  struct {
+    const wchar_t* locale;
+    const wchar_t* input;
+    const wchar_t* pattern;
+    const wchar_t* output;
+  } tests[] = {
+      {L"en", L"1999-07-16T10:30Z",
+       L"'At' time{HH:MM Z} 'on' date{MMM DD, YYYY}",
+       L"At 10:30 GMT on Jul 16, 1999"},
+      {L"en", L"1999-07-16T10:30", L"'At' time{HH:MM} 'on' date{MMM DD, YYYY}",
+       L"At 10:30 on Jul 16, 1999"},
+      {L"en", L"1999-07-16T10:30Z",
+       L"time{'At' HH:MM Z} date{'on' MMM DD, YYYY}",
+       L"At 10:30 GMT on Jul 16, 1999"},
+      {L"en", L"1999-07-16T10:30Z",
+       L"time{'At 'HH:MM Z}date{' on 'MMM DD, YYYY}",
        L"At 10:30 GMT on Jul 16, 1999"}};
 
   for (size_t i = 0; i < FX_ArraySize(tests); ++i) {
@@ -422,6 +452,8 @@ TEST_F(CFGAS_StringFormatterTest, NumParse) {
       {L"en", L"123.5 ", L"zzz.z)", L"123.5"},
       {L"en", L"123.5 ", L"zzz.z(", L"123.5"},
       {L"en", L"123.545,4", L"zzz.zzz,z", L"123.5454"},
+      // https://crbug.com/938724
+      {L"en", L"1", L" num.().().}", L"1"},
   };
 
   static const TestCase failures[] = {
@@ -430,9 +462,6 @@ TEST_F(CFGAS_StringFormatterTest, NumParse) {
 
       // https://crbug.com/938626
       {L"en", L"PDF", L"num( ", L"."},
-
-      // https://crbug.com/938724
-      {L"en", L"1", L" num.().().}", L"."},
   };
 
   for (const auto& test : tests) {
@@ -559,11 +588,22 @@ TEST_F(CFGAS_StringFormatterTest, NumFormat) {
       {L"en", L"1", L"9.", L"1"},
   };
 
+  static const TestCase failures[] = {
+      // https://crbug.com/pdfium/1271
+      {L"en", L"1", L"num.{E", L"1"},
+  };
+
   for (const auto& test : tests) {
     WideString result;
     EXPECT_TRUE(fmt(test.locale, test.pattern)->FormatNum(test.input, &result))
         << " TEST: " << test.input << ", " << test.pattern;
     EXPECT_STREQ(test.output, result.c_str())
+        << " TEST: " << test.input << ", " << test.pattern;
+  }
+
+  for (const auto& test : failures) {
+    WideString result;
+    EXPECT_FALSE(fmt(test.locale, test.pattern)->FormatNum(test.input, &result))
         << " TEST: " << test.input << ", " << test.pattern;
   }
 }

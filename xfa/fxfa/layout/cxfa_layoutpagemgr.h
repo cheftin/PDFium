@@ -12,6 +12,7 @@
 #include <map>
 #include <vector>
 
+#include "third_party/base/optional.h"
 #include "xfa/fxfa/layout/cxfa_itemlayoutprocessor.h"
 
 class CXFA_ContainerRecord;
@@ -20,6 +21,17 @@ class CXFA_Node;
 
 class CXFA_LayoutPageMgr {
  public:
+  struct BreakData {
+    CXFA_Node* pLeader;
+    CXFA_Node* pTrailer;
+    bool bCreatePage;
+  };
+
+  struct OverflowData {
+    CXFA_Node* pLeader;
+    CXFA_Node* pTrailer;
+  };
+
   explicit CXFA_LayoutPageMgr(CXFA_LayoutProcessor* pLayoutProcessor);
   ~CXFA_LayoutPageMgr();
 
@@ -37,20 +49,13 @@ class CXFA_LayoutPageMgr {
   inline CXFA_ContainerLayoutItem* GetRootLayoutItem() const {
     return m_pPageSetLayoutItemRoot;
   }
-  bool ProcessBreakBeforeOrAfter(CXFA_Node* pBreakNode,
-                                 bool bBefore,
-                                 CXFA_Node*& pBreakLeaderNode,
-                                 CXFA_Node*& pBreakTrailerNode,
-                                 bool& bCreatePage);
-  bool ProcessOverflow(CXFA_Node* pFormNode,
-                       CXFA_Node*& pLeaderNode,
-                       CXFA_Node*& pTrailerNode,
-                       bool bDataMerge,
-                       bool bCreatePage);
+  Optional<BreakData> ProcessBreakBefore(const CXFA_Node* pBreakNode);
+  Optional<BreakData> ProcessBreakAfter(const CXFA_Node* pBreakNode);
+  Optional<OverflowData> ProcessOverflow(CXFA_Node* pFormNode,
+                                         bool bCreatePage);
   CXFA_Node* QueryOverflow(CXFA_Node* pFormNode);
-  bool ProcessBookendLeaderOrTrailer(CXFA_Node* pBookendNode,
-                                     bool bLeader,
-                                     CXFA_Node*& pBookendAppendNode);
+  CXFA_Node* ProcessBookendLeader(const CXFA_Node* pBookendNode);
+  CXFA_Node* ProcessBookendTrailer(const CXFA_Node* pBookendNode);
 
  private:
   bool AppendNewPage(bool bFirstTemPage);
@@ -75,17 +80,17 @@ class CXFA_LayoutPageMgr {
                 XFA_AttributeValue eTargetType,
                 CXFA_Node* pTarget,
                 bool bStartNew);
-  CXFA_Node* BreakOverflow(CXFA_Node* pOverflowNode,
-                           CXFA_Node*& pLeaderTemplate,
-                           CXFA_Node*& pTrailerTemplate,
-                           bool bCreatePage);
-  bool ResolveBookendLeaderOrTrailer(CXFA_Node* pBookendNode,
-                                     bool bLeader,
-                                     CXFA_Node*& pBookendAppendTemplate);
-  bool ExecuteBreakBeforeOrAfter(CXFA_Node* pCurNode,
-                                 bool bBefore,
-                                 CXFA_Node*& pBreakLeaderTemplate,
-                                 CXFA_Node*& pBreakTrailerTemplate);
+  bool BreakOverflow(const CXFA_Node* pOverflowNode,
+                     bool bCreatePage,
+                     CXFA_Node** pLeaderTemplate,
+                     CXFA_Node** pTrailerTemplate);
+  CXFA_Node* ProcessBookendLeaderOrTrailer(const CXFA_Node* pBookendNode,
+                                           bool bLeader);
+  CXFA_Node* ResolveBookendLeaderOrTrailer(const CXFA_Node* pBookendNode,
+                                           bool bLeader);
+  Optional<BreakData> ProcessBreakBeforeOrAfter(const CXFA_Node* pBreakNode,
+                                                bool bBefore);
+  BreakData ExecuteBreakBeforeOrAfter(const CXFA_Node* pCurNode, bool bBefore);
 
   int32_t CreateMinPageRecord(CXFA_Node* pPageArea,
                               bool bTargetPageArea,
@@ -128,6 +133,9 @@ class CXFA_LayoutPageMgr {
   void LayoutPageSetContents();
   void PrepareLayout();
   void SaveLayoutItem(CXFA_LayoutItem* pParentLayoutItem);
+  void ProcessSimplexOrDuplexPageSets(
+      CXFA_ContainerLayoutItem* pPageSetLayoutItem,
+      bool bIsSimplex);
 
   CXFA_LayoutProcessor* m_pLayoutProcessor;
   CXFA_Node* m_pTemplatePageSetRoot;

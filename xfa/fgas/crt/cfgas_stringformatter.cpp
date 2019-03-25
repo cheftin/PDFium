@@ -788,7 +788,7 @@ bool FX_TimeFromCanonical(const LocaleIface* pLocale,
 
   uint32_t second = 0;
   uint32_t millisecond = 0;
-  if (spTime[cc] != 'Z') {
+  if (cc < spTime.size() && spTime[cc] != 'Z') {
     if (!ExtractCountDigits(spTime, 2, &cc, &second) || second >= 60)
       return false;
 
@@ -1010,7 +1010,7 @@ LocaleIface* CFGAS_StringFormatter::GetNumericFormat(
           auto result = wsSubCategory.Find('.');
           if (result.has_value() && result.value() != 0) {
             if (!bFindDot)
-              *iDotIndex = wsPurgePattern->GetLength() - 1;
+              *iDotIndex = wsPurgePattern->GetLength() + result.value();
             bFindDot = true;
             *dwStyle |= FX_NUMSTYLE_DotVorv;
           }
@@ -1672,41 +1672,39 @@ bool CFGAS_StringFormatter::ParseDateTime(const WideString& wsSrcDateTime,
   if (wsSrcDateTime.IsEmpty() || m_spPattern.empty())
     return false;
 
+  LocaleIface* pLocale = nullptr;
   WideString wsDatePattern;
   WideString wsTimePattern;
-  LocaleIface* pLocale = nullptr;
   FX_DATETIMETYPE eCategory =
       GetDateTimeFormat(&pLocale, &wsDatePattern, &wsTimePattern);
   if (!pLocale)
     return false;
+
   if (eCategory == FX_DATETIMETYPE_Unknown)
     eCategory = eDateTimeType;
-  if (eCategory == FX_DATETIMETYPE_Unknown)
-    return false;
-  if (eCategory == FX_DATETIMETYPE_TimeDate) {
-    size_t iStart = 0;
-    if (!ParseLocaleTime(wsSrcDateTime, wsTimePattern, pLocale, dtValue,
-                         &iStart)) {
+
+  size_t iStart = 0;
+  switch (eCategory) {
+    case FX_DATETIMETYPE_Date:
+      return ParseLocaleDate(wsSrcDateTime, wsDatePattern, pLocale, dtValue,
+                             &iStart);
+    case FX_DATETIMETYPE_Time:
+      return ParseLocaleTime(wsSrcDateTime, wsTimePattern, pLocale, dtValue,
+                             &iStart);
+    case FX_DATETIMETYPE_DateTime:
+      return ParseLocaleDate(wsSrcDateTime, wsTimePattern, pLocale, dtValue,
+                             &iStart) &&
+             ParseLocaleTime(wsSrcDateTime, wsDatePattern, pLocale, dtValue,
+                             &iStart);
+    case FX_DATETIMETYPE_TimeDate:
+      return ParseLocaleTime(wsSrcDateTime, wsTimePattern, pLocale, dtValue,
+                             &iStart) &&
+             ParseLocaleDate(wsSrcDateTime, wsDatePattern, pLocale, dtValue,
+                             &iStart);
+    case FX_DATETIMETYPE_Unknown:
+    default:
       return false;
-    }
-    if (!ParseLocaleDate(wsSrcDateTime, wsDatePattern, pLocale, dtValue,
-                         &iStart)) {
-      return false;
-    }
-  } else {
-    size_t iStart = 0;
-    if ((eCategory & FX_DATETIMETYPE_Date) &&
-        !ParseLocaleDate(wsSrcDateTime, wsDatePattern, pLocale, dtValue,
-                         &iStart)) {
-      return false;
-    }
-    if ((eCategory & FX_DATETIMETYPE_Time) &&
-        !ParseLocaleTime(wsSrcDateTime, wsTimePattern, pLocale, dtValue,
-                         &iStart)) {
-      return false;
-    }
   }
-  return true;
 }
 
 bool CFGAS_StringFormatter::ParseZero(const WideString& wsSrcText) const {
@@ -2032,7 +2030,7 @@ bool CFGAS_StringFormatter::FormatNum(const WideString& wsInputNum,
   }
 
   if (cc < spSrcNum.size()) {
-    int nPos = dot_index.value() % 3;
+    size_t nPos = dot_index.value() % 3;
     wsOutput->clear();
     for (size_t i = 0; i < dot_index.value(); i++) {
       if (i % 3 == nPos && i != 0)

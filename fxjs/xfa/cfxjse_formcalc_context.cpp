@@ -5412,18 +5412,16 @@ ByteString CFXJSE_FormCalcContext::GenerateSomExpression(ByteStringView bsName,
     return ByteString(bsName, "[") + ByteString::FormatInteger(iIndexValue) +
            "]";
   }
-  ByteString bsSomExp;
-  if (iIndexFlags == 2) {
-    bsSomExp = (iIndexValue < 0) ? (bsName + "[-") : (bsName + "[+");
-    iIndexValue = (iIndexValue < 0) ? (0 - iIndexValue) : iIndexValue;
-    bsSomExp += ByteString::FormatInteger(iIndexValue);
-    bsSomExp += "]";
-  } else {
-    bsSomExp = (iIndexValue < 0) ? (bsName + "[") : (bsName + "[-");
-    iIndexValue = (iIndexValue < 0) ? (0 - iIndexValue) : iIndexValue;
-    bsSomExp += ByteString::FormatInteger(iIndexValue);
-    bsSomExp += "]";
-  }
+
+  const bool bNegative = iIndexValue < 0;
+  ByteString bsSomExp(bsName);
+  if (iIndexFlags == 2)
+    bsSomExp += bNegative ? "[-" : "[+";
+  else
+    bsSomExp += bNegative ? "[" : "[-";
+  iIndexValue = bNegative ? 0 - iIndexValue : iIndexValue;
+  bsSomExp += ByteString::FormatInteger(iIndexValue);
+  bsSomExp += "]";
   return bsSomExp;
 }
 
@@ -5553,7 +5551,7 @@ void CFXJSE_FormCalcContext::ParseResolveResult(
 // static
 int32_t CFXJSE_FormCalcContext::ValueToInteger(CFXJSE_Value* pThis,
                                                CFXJSE_Value* pValue) {
-  if (!pValue)
+  if (!pValue || pValue->IsEmpty())
     return 0;
 
   v8::Isolate* pIsolate = ToFormCalcContext(pThis)->GetScriptRuntime();

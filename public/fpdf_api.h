@@ -110,7 +110,7 @@ typedef struct _FPDF_TEXT_ITEM_ {
     std::wstring text;
     std::string familyName;
     std::string faceName;
-    int fontsize;
+    float fontsize;
     int fontflags;
     int textMode;
     bool italic;

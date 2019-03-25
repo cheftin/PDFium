@@ -218,7 +218,7 @@ void FPDF_GetTextStyle(FPDF_CHAR_INFO& charInfo, FPDF_TEXT_ITEM& textItem) {
         textItem.bold = fxFont->IsBold();
         textItem.italic = fxFont->IsItalic();
         textItem.fontflags = pdFont->GetFontFlags();
-        textItem.fontsize = charInfo.m_FontSize;
+        textItem.fontsize = charInfo.m_FontSize * charInfo.m_Matrix.GetXUnit();
         textItem.textMode = static_cast<int>(charInfo.m_pTextObj->m_TextState.GetTextMode());
     } else {
         textItem.hasFont = false;

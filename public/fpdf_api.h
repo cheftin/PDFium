@@ -145,6 +145,7 @@ typedef struct _FPDF_IMAGE_ITEM_ {
     FPDF_RECT bbox;
     FPDF_COLOR fillColor;
     FPDF_COLOR strokeColor;
+    std::vector<unsigned char> png_encoding;
 } FPDF_IMAGE_ITEM;
 
 typedef struct _FPDF_PAGE_ITEM_ {
@@ -198,7 +199,7 @@ class BufferFileWrite : public FPDF_FILEWRITE {
 };
 
 FPDF_EXPORT void FPDF_CALLCONV
-FPDF_LoadPageObject(FPDF_PAGE page, FPDF_PAGE_ITEM& pageObj, bool saveGlyphs=false);
+FPDF_LoadPageObject(FPDF_PAGE page, FPDF_PAGE_ITEM& pageObj, bool saveGlyphs=false, bool saveImages=false);
 
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
 FPDF_SaveDocument(FPDF_DOCUMENT document, FPDF_STRING file_path);

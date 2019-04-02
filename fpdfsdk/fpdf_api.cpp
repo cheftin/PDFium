@@ -42,6 +42,10 @@
 #include "core/fxge/cfx_fontmapper.h"
 #include "core/fxge/systemfontinfo_iface.h"
 #include "core/fxge/cfx_folderfontinfo.h"
+#include "core/fpdfapi/render/cpdf_rendercontext.h"
+#include "core/fpdfapi/render/cpdf_renderstatus.h"
+#include "core/fxge/cfx_defaultrenderdevice.h"
+#include "core/fpdfapi/render/cpdf_imagerenderer.h"
 
 
 FPDF_EXPORT _FPDF_PNG_ENCODING_::_FPDF_PNG_ENCODING_() = default;
@@ -319,9 +323,160 @@ void FPDF_GetPathItem(CPDF_PathObject* pPathObj, FPDF_PATH_ITEM& pathItem) {
     FPDF_GetColor(pPathObj, pathItem.fillColor, pathItem.strokeColor);
 }
 
-void FPDF_GetImageItem(CPDF_ImageObject* pImageObj, FPDF_IMAGE_ITEM& imageItem) {
+void FPDF_RenderMaskedImage(RetainPtr<CFX_DIBitmap>& bitmap, CPDF_RenderStatus* pRenderStatus, CPDF_ImageLoader* pImgLoader,
+                            const CFX_Matrix& matrix, const FXDIB_ResampleOptions& resampleOptions, int bitmapAlpha) {
+    CPDF_ImageRenderer image_render;
+    CFX_DefaultRenderDevice bitmap_device1;
+    if (!bitmap_device1.Create(bitmap->GetWidth(), bitmap->GetHeight(), FXDIB_Rgb32, nullptr))
+        return;
+    bitmap_device1.GetBitmap()->Clear(0xffffff);
+    CPDF_RenderStatus bitmap_render1(pRenderStatus->GetContext(), &bitmap_device1);
+    if (image_render.Start(&bitmap_render1, bitmap, 0, 255, matrix,
+                           resampleOptions, true, BlendMode::kNormal)) {
+        image_render.Continue(nullptr);
+    }
+
+    CFX_DefaultRenderDevice bitmap_device2;
+    if (!bitmap_device2.Create(bitmap->GetWidth(), bitmap->GetHeight(), FXDIB_8bppRgb, nullptr))
+        return;
+    CPDF_RenderStatus bitmap_render2(pRenderStatus->GetContext(), &bitmap_device2);
+    if (image_render.Start(&bitmap_render2, pImgLoader->GetMask(), 0xffffffff, 255, matrix,
+                           resampleOptions, true, BlendMode::kNormal)) {
+        image_render.Continue(nullptr);
+    }
+    if (pImgLoader->MatteColor() != 0xffffffff) {
+        int matte_r = FXARGB_R(pImgLoader->MatteColor());
+        int matte_g = FXARGB_G(pImgLoader->MatteColor());
+        int matte_b = FXARGB_B(pImgLoader->MatteColor());
+        for (int row = 0; row < bitmap->GetHeight(); row++) {
+            uint8_t* dest_scan = bitmap_device1.GetBitmap()->GetWritableScanline(row);
+            const uint8_t* mask_scan = bitmap_device2.GetBitmap()->GetScanline(row);
+            for (int col = 0; col < bitmap->GetWidth(); col++) {
+                int alpha = *mask_scan++;
+                if (!alpha) {
+                    dest_scan += 4;
+                    continue;
+                }
+                int orig = (*dest_scan - matte_b) * 255 / alpha + matte_b;
+                *dest_scan++ = pdfium::clamp(orig, 0, 255);
+                orig = (*dest_scan - matte_g) * 255 / alpha + matte_g;
+                *dest_scan++ = pdfium::clamp(orig, 0, 255);
+                orig = (*dest_scan - matte_r) * 255 / alpha + matte_r;
+                *dest_scan++ = pdfium::clamp(orig, 0, 255);
+                dest_scan++;
+            }
+        }
+    }
+
+    bitmap_device2.GetBitmap()->ConvertFormat(FXDIB_8bppMask);
+    bitmap_device1.GetBitmap()->MultiplyAlpha(bitmap_device2.GetBitmap());
+    if (bitmapAlpha < 255)
+        bitmap_device1.GetBitmap()->MultiplyAlpha(bitmapAlpha);
+    bitmap.Reset(nullptr);
+    bitmap = bitmap_device1.GetBitmap()->Clone(nullptr);
+}
+
+void FPDF_RenderDIBBase(CPDF_Page* pPage, CPDF_ImageObject* imgObj, RetainPtr<CFX_DIBitmap>& bitmap) {
+    if (pPage == nullptr || imgObj == nullptr || bitmap == nullptr)
+        return;
+
+    std::unique_ptr<CPDF_RenderContext> pContext = pdfium::MakeUnique<CPDF_RenderContext>(pPage);
+    std::unique_ptr<CFX_DefaultRenderDevice> pDevice = pdfium::MakeUnique<CFX_DefaultRenderDevice>();
+    pDevice->Attach(bitmap, false, nullptr, false);
+    std::unique_ptr<CPDF_RenderStatus> pRenderStatus = pdfium::MakeUnique<CPDF_RenderStatus>(pContext.get(), pDevice.get());
+    pRenderStatus->Initialize(nullptr, nullptr);
+
+    CPDF_ImageLoader imgLoader;
+    imgLoader.Start(imgObj,
+                    pRenderStatus->GetContext()->GetPageCache(), true,
+                    pRenderStatus->GetGroupFamily(),
+                    pRenderStatus->GetLoadMask(), pRenderStatus.get());
+    if (!imgLoader.GetBitmap())
+        return;
+
+    CFX_Matrix matrix(bitmap->GetWidth(), 0, 0, -bitmap->GetHeight(), 0, bitmap->GetHeight());
+    FXDIB_ResampleOptions resampleOptions = FXDIB_ResampleOptions();
+    CPDF_GeneralState& state = imgObj->m_GeneralState;
+    int bitmapAlpha = FXSYS_round(255 * state.GetFillAlpha());
+    if (imgLoader.GetMask()) {
+        FPDF_RenderMaskedImage(bitmap, pRenderStatus.get(), &imgLoader, matrix, resampleOptions, bitmapAlpha);
+        return;
+    }
+
+    FXDIB_Format format = bitmap->GetFormat();
+    if (format != FXDIB_8bppRgb && format != FXDIB_8bppMask)
+        return;
+
+    if (!imgObj->GetImage()->IsMask()) {
+        bitmap->ConvertFormat(FXDIB_Rgb);
+        return;
+    }
+
+    // Fill background
+    int alpha = pPage->BackgroundAlphaNeeded() ? 1 : 0;
+    FPDF_DWORD fill_color = alpha ? 0x00000000 : 0xFFFFFFFF;
+    FPDFBitmap_FillRect(FPDFBitmapFromCFXDIBitmap(bitmap.Get()), 0, 0, bitmap->GetWidth(), bitmap->GetHeight(), fill_color);
+
+    RetainPtr<CFX_DIBBase> pDIBBase = imgLoader.GetBitmap();
+    if (pDIBBase->IsAlphaMask()) {
+        FX_ARGB fillArgb = pRenderStatus->GetFillArgb(imgObj);
+        std::unique_ptr<CFX_ImageRenderer> m_DeviceHandle;
+        pRenderStatus->GetRenderDevice()->StartDIBitsWithBlend(pDIBBase, bitmapAlpha, fillArgb, matrix,
+                                                               resampleOptions, &m_DeviceHandle, BlendMode::kNormal);
+        if (m_DeviceHandle) {
+            pRenderStatus->GetRenderDevice()->ContinueDIBits(m_DeviceHandle.get(), nullptr);
+        }
+    }
+}
+
+void FPDF_ExtractImageData(CPDF_Page* pPage, CPDF_ImageObject* imgObj, std::vector<unsigned char>& png_encoding) {
+    if (imgObj == nullptr)
+        return;
+    RetainPtr<CPDF_Image> pImg = imgObj->GetImage();
+    if (pImg == nullptr)
+        return;
+
+    RetainPtr<CFX_DIBBase> pSource = pImg->LoadDIBBase();
+    if (pSource == nullptr)
+        return;
+
+    RetainPtr<CFX_DIBitmap> pBitmap;
+    if (pSource->GetBPP() == 1)
+        pBitmap = pSource->CloneConvert(FXDIB_8bppRgb);
+    else
+        pBitmap = pSource->Clone(nullptr);
+
+    FPDF_RenderDIBBase(pPage, imgObj, pBitmap);
+    FXDIB_Format format = pBitmap->GetFormat();
+    int width = pBitmap->GetWidth();
+    int height = pBitmap->GetHeight();
+    int stride = pBitmap->GetPitch();
+    const unsigned char* buffer = static_cast<const unsigned char*>(pBitmap->GetBuffer());
+    switch (format) {
+        case FXDIB_8bppRgb:
+        case FXDIB_8bppMask:
+            image_diff_png::EncodeGrayPNG(buffer, width, height, stride, &png_encoding);
+            break;
+        case FXDIB_Rgb:
+            image_diff_png::EncodeBGRPNG(buffer, width, height, stride, &png_encoding);
+            break;
+        case FXDIB_Rgb32:
+            image_diff_png::EncodeBGRAPNG(buffer, width, height, stride, true, &png_encoding);
+            break;
+        case FXDIB_Argb:
+            image_diff_png::EncodeBGRAPNG(buffer, width, height, stride, false, &png_encoding);
+            break;
+        default:
+            fprintf(stderr, "Image object has a bitmap of unknown format.\n");
+    }
+}
+
+void FPDF_GetImageItem(CPDF_ImageObject* pImageObj, FPDF_IMAGE_ITEM& imageItem, CPDF_Page* pPage, bool saveImages) {
     FPDF_GetPageObjectBBox(pImageObj, imageItem.bbox);
     FPDF_GetColor(pImageObj, imageItem.fillColor, imageItem.strokeColor);
+    if (saveImages) {
+        FPDF_ExtractImageData(pPage, pImageObj, imageItem.png_encoding);
+    }
 }
 
 void FPDF_ProcessShadingObject(
@@ -391,7 +546,8 @@ void FPDF_ProcessFormObject(
 void FPDF_ProcessObject(
     CPDF_Page* pPage,
     std::vector<FPDF_PATH_ITEM>& pathItems,
-    std::vector<FPDF_IMAGE_ITEM>& imageItems) {
+    std::vector<FPDF_IMAGE_ITEM>& imageItems,
+    bool saveImages) {
     if (pPage->GetPageObjectList()->empty())
         return;
 
@@ -422,7 +578,7 @@ void FPDF_ProcessObject(
     }
     for (CPDF_ImageObject* obj : images) {
         FPDF_IMAGE_ITEM imageItem;
-        FPDF_GetImageItem(obj, imageItem);
+        FPDF_GetImageItem(obj, imageItem, pPage, saveImages);
         imageItems.push_back(imageItem);
     }
 }
@@ -528,7 +684,7 @@ void FPDF_ExtractCharGlyph(FPDF_CHAR_INFO& charInfo, std::string& glyph)
 }
 
 FPDF_EXPORT void FPDF_CALLCONV
-FPDF_LoadPageObject(FPDF_PAGE page, FPDF_PAGE_ITEM& pageObj, bool saveGlyphs) {
+FPDF_LoadPageObject(FPDF_PAGE page, FPDF_PAGE_ITEM& pageObj, bool saveGlyphs, bool saveImages) {
     CPDF_Page* pPDFPage = CPDFPageFromFPDFPage(page);
     if (!pPDFPage)
         return;
@@ -589,7 +745,7 @@ FPDF_LoadPageObject(FPDF_PAGE page, FPDF_PAGE_ITEM& pageObj, bool saveGlyphs) {
             pageObj.glyphs[key] = glyph;
         }
     }
-    FPDF_ProcessObject(pPDFPage, pageObj.paths, pageObj.images);
+    FPDF_ProcessObject(pPDFPage, pageObj.paths, pageObj.images, saveImages);
     delete textPage;
 }
 

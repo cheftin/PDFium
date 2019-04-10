@@ -235,7 +235,7 @@ void FPDF_GetTextStyle(FPDF_CHAR_INFO& charInfo, FPDF_TEXT_ITEM& textItem) {
 }
 
 void FPDF_GetCharItem(FPDF_CHAR_INFO& charInfo, FPDF_CHAR_ITEM& charItem, CPDF_Page* pPage=nullptr) {
-    charItem.text = charInfo.m_Unicode;
+    charItem.text = FPDF_WCharToString(charInfo.m_Unicode);
     charItem.flag = charInfo.m_Flag;
     CFX_Matrix matrix;
     if (pPage) {
@@ -583,17 +583,25 @@ void FPDF_ProcessObject(
     }
 }
 
-void FPDF_WStringToString(const std::wstring& src, std::string& dest)
+std::string FPDF_WStringToString(const std::wstring& src)
 {
     CFX_UTF8Encoder encoder;
     for(auto c : src) {
         encoder.Input(c);
     }
     ByteStringView result = encoder.GetResult();
-    dest = std::string(result.unterminated_c_str(), result.GetLength());
+    return std::string(result.unterminated_c_str(), result.GetLength());
 }
 
-void FPDF_GenGlyphKey(std::string& faceName, wchar_t text, std::string& key) {
+std::string FPDF_WCharToString(const wchar_t wc)
+{
+    wchar_t tmp[2] = {0};
+    tmp[0] = wc;
+    return FPDF_WStringToString(tmp);
+}
+
+
+void FPDF_GenGlyphKey(std::string& faceName, std::string text, std::string& key) {
     size_t pos = faceName.find('+');
     std::string fontName;
     if (pos != std::string::npos) {
@@ -601,13 +609,9 @@ void FPDF_GenGlyphKey(std::string& faceName, wchar_t text, std::string& key) {
     } else {
         fontName = faceName;
     }
-    wchar_t tmp[2] = {0};
-    tmp[0] = text;
-    std::string textStr;
-    FPDF_WStringToString(tmp, textStr);
-    if (textStr.size() < 1)
+    if (text.size() < 1)
         return;
-    key = fontName + "-" + textStr;
+    key = fontName + "-" + text;
 }
 
 void FPDF_ExtractCharGlyph(FPDF_CHAR_INFO& charInfo, std::string& glyph)

@@ -96,7 +96,7 @@ typedef struct _FPDF_CHAR_ITEM_ {
     FPDF_EXPORT _FPDF_CHAR_ITEM_& operator=(const _FPDF_CHAR_ITEM_& other);
     FPDF_RECT charBox;
     FPDF_RECT fontBox;
-    wchar_t text;
+    std::string text;
     int flag;
 } FPDF_CHAR_ITEM;
 
@@ -107,7 +107,7 @@ typedef struct _FPDF_TEXT_ITEM_ {
     FPDF_EXPORT _FPDF_TEXT_ITEM_& operator=(const _FPDF_TEXT_ITEM_& other);
     FPDF_RECT bbox;
     FPDF_RECT clipBox;
-    std::wstring text;
+    std::string text;
     std::string familyName;
     std::string faceName;
     float fontsize;
@@ -231,5 +231,9 @@ FPDF_GetSystemFonts(std::map<std::string, std::string>&);
 #ifdef __cplusplus
 }
 #endif
+
+
+std::string FPDF_WStringToString(const std::wstring& src);
+std::string FPDF_WCharToString(const wchar_t wc);
 
 #endif  // PUBLIC_FPDFAPI_H_

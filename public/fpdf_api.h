@@ -235,5 +235,6 @@ FPDF_GetSystemFonts(std::map<std::string, std::string>&);
 
 std::string FPDF_WStringToString(const std::wstring& src);
 std::string FPDF_WCharToString(const wchar_t wc);
+std::string FPDF_SurrogatePairToString(wchar_t h, wchar_t l);
 
 #endif  // PUBLIC_FPDFAPI_H_

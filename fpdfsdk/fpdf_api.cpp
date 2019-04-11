@@ -600,6 +600,13 @@ std::string FPDF_WCharToString(const wchar_t wc)
     return FPDF_WStringToString(tmp);
 }
 
+std::string FPDF_SurrogatePairToString(wchar_t h, wchar_t l) {
+    int codePoint = (((h - 0xD800) << 10) | (l - 0xDC00)) + 0x10000;
+    CFX_UTF8Encoder encoder;
+    encoder.Input(codePoint);
+    ByteStringView result = encoder.GetResult();
+    return std::string(result.unterminated_c_str(), result.GetLength());
+}
 
 void FPDF_GenGlyphKey(std::string& faceName, std::string text, std::string& key) {
     size_t pos = faceName.find('+');
@@ -705,13 +712,27 @@ FPDF_LoadPageObject(FPDF_PAGE page, FPDF_PAGE_ITEM& pageObj, bool saveGlyphs, bo
     textPage->setNeedTransformClipPath(true);
     textPage->ParseTextPage();
 
+
     UnownedPtr<CPDF_TextObject> curTextObj = nullptr;
+    wchar_t spHigh = 0;
+
     for (int i = 0; i < textPage->CountChars(); i++) {
         FPDF_CHAR_ITEM charItem;
         FPDF_CHAR_INFO charInfo;
         std::string faceName;
         textPage->GetCharInfo(i, &charInfo);
         FPDF_GetCharItem(charInfo, charItem, pPDFPage);
+        if (charInfo.m_Unicode >= 0xD800 && charInfo.m_Unicode <= 0xDBFF) { // high surrogate
+            spHigh = charInfo.m_Unicode;
+            continue;
+        } else if (charInfo.m_Unicode >= 0xDC00 && charInfo.m_Unicode <= 0xDFFF) { // low surrogate
+            if (spHigh >= 0xD800 && spHigh <= 0xDBFF) {
+                charItem.text = FPDF_SurrogatePairToString(spHigh, charInfo.m_Unicode);
+            } else {
+                // bad sequence
+            }
+            spHigh = 0;
+        }
 
         if (curTextObj != charInfo.m_pTextObj) {
             FPDF_TEXT_ITEM textItem;

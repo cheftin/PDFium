@@ -119,6 +119,7 @@ typedef struct _FPDF_TEXT_ITEM_ {
     FPDF_COLOR fillColor;
     FPDF_COLOR strokeColor;
     std::vector<FPDF_CHAR_ITEM> chars;
+    int z_index;
 } FPDF_TEXT_ITEM;
 
 typedef struct _FPDF_PATH_ITEM_ {
@@ -135,6 +136,7 @@ typedef struct _FPDF_PATH_ITEM_ {
     FPDF_COLOR fillColor;
     FPDF_COLOR strokeColor;
     std::vector<FPDF_POINT> points;
+    int z_index;
 } FPDF_PATH_ITEM;
 
 typedef struct _FPDF_IMAGE_ITEM_ {
@@ -146,6 +148,7 @@ typedef struct _FPDF_IMAGE_ITEM_ {
     FPDF_COLOR fillColor;
     FPDF_COLOR strokeColor;
     std::vector<unsigned char> png_encoding;
+    int z_index;
 } FPDF_IMAGE_ITEM;
 
 typedef struct _FPDF_PAGE_ITEM_ {

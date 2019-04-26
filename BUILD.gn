@@ -213,6 +213,7 @@ shared_library("pdfium") {
     libs += [
       "AppKit.framework",
       "CoreFoundation.framework",
+      "iconv",
     ]
   }
 

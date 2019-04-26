@@ -167,7 +167,7 @@ std::string decodeFontName(const ByteString &name)
     size_t inbytesleft = name.GetLength(), outbytesleft = name.GetLength() * 2;
     char *inbuf = const_cast<char*>(data);
     char *outbuf = new char[name.GetLength() * 2];
-    char *out = oufbuf;
+    char *out = outbuf;
     memset(outbuf, 0, name.GetLength() * 2);
     iconv(conv,
         &inbuf, &inbytesleft,
@@ -264,7 +264,7 @@ void FPDF_GetTextStyle(FPDF_CHAR_INFO& charInfo, FPDF_TEXT_ITEM& textItem) {
         CFX_Font* fxFont = pdFont->GetFont();
         textItem.hasFont = true;
         textItem.familyName = decodeFontName(fxFont->GetFamilyName());
-        textItem.faceName = fxFont->GetFaceName().c_str();
+        textItem.faceName = decodeFontName(fxFont->GetFaceName());
         textItem.bold = fxFont->IsBold();
         textItem.italic = fxFont->IsItalic();
         textItem.fontflags = pdFont->GetFontFlags();

@@ -47,6 +47,10 @@
 #include "core/fxge/cfx_defaultrenderdevice.h"
 #include "core/fpdfapi/render/cpdf_imagerenderer.h"
 
+#if _FX_PLATFORM_ != _FX_PLATFORM_WINDOWS_
+#include <cstring>
+#include <iconv.h>
+#endif
 
 FPDF_EXPORT _FPDF_PNG_ENCODING_::_FPDF_PNG_ENCODING_() = default;
 FPDF_EXPORT _FPDF_PNG_ENCODING_::~_FPDF_PNG_ENCODING_() = default;
@@ -143,6 +147,38 @@ unsigned int GetUnsignedAlpha(float alpha) {
   return static_cast<unsigned int>(alpha * 255.f + 0.5f);
 }
 
+std::string decodeFontName(const ByteString &name)
+{
+#if _FX_PLATFORM_ == _FX_PLATFORM_WINDOWS_
+    return std::string(name.c_str());
+#else
+    const char* data = name.c_str();
+    bool all_ascii = true;
+    for (size_t i = 0; i < name.GetLength(); i++) {
+        if((unsigned char)*(data + i) > 127) {
+            all_ascii = false;
+            break;
+        }
+    }
+    if(all_ascii)
+        return std::string(name.c_str());
+
+    iconv_t conv = iconv_open("UTF-8", "GBK");
+    size_t inbytesleft = name.GetLength(), outbytesleft = name.GetLength() * 2;
+    char *inbuf = const_cast<char*>(data);
+    char *outbuf = new char[name.GetLength() * 2];
+    char *out = oufbuf;
+    memset(outbuf, 0, name.GetLength() * 2);
+    iconv(conv,
+        &inbuf, &inbytesleft,
+        &outbuf, &outbytesleft);
+
+    std::string ret = std::string(out);
+    delete[] out;
+    return ret;
+#endif
+}
+
 void FPDF_GetPageMatrix(CPDF_Page* pPage, CFX_Matrix& matrix) {
     const FX_RECT rect(0, 0, static_cast<int>(pPage->GetPageWidth()),
                      static_cast<int>(pPage->GetPageHeight()));
@@ -227,7 +263,7 @@ void FPDF_GetTextStyle(FPDF_CHAR_INFO& charInfo, FPDF_TEXT_ITEM& textItem) {
         CPDF_Font* pdFont = charInfo.m_pTextObj->GetFont();
         CFX_Font* fxFont = pdFont->GetFont();
         textItem.hasFont = true;
-        textItem.familyName = fxFont->GetFamilyName().c_str();
+        textItem.familyName = decodeFontName(fxFont->GetFamilyName());
         textItem.faceName = fxFont->GetFaceName().c_str();
         textItem.bold = fxFont->IsBold();
         textItem.italic = fxFont->IsItalic();

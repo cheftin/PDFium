@@ -236,6 +236,7 @@ component("pdfium") {
     frameworks = [
       "AppKit.framework",
       "CoreFoundation.framework",
+      "iconv",
     ]
   }
 

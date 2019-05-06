@@ -673,6 +673,11 @@ void FPDF_InitTextItem(FPDF_TEXT_ITEM& textItem, CPDF_Page* pPage, FPDF_CHAR_INF
     FPDF_GetColor(pTextObj, textItem.fillColor, textItem.strokeColor);
 }
 
+inline bool FPDF_IsWatermarkText(FPDF_CHAR_INFO& charInfo) {
+    return ((charInfo.m_Matrix.b != 0 && charInfo.m_Matrix.b != 1 && charInfo.m_Matrix.b != -1) ||
+        (charInfo.m_Matrix.c != 0 && charInfo.m_Matrix.c != 1 && charInfo.m_Matrix.c != -1));
+}
+
 bool FPDF_ProcessTextObject(
     CPDF_Page* pPage,
     CPDF_TextPage* textPage,
@@ -691,6 +696,9 @@ bool FPDF_ProcessTextObject(
         FPDF_CHAR_INFO charInfo;
         std::string faceName;
         textPage->GetCharInfo(i, &charInfo);
+        // remove watermark texts
+        if (FPDF_IsWatermarkText(charInfo))
+            continue;
         FPDF_GetCharItem(charInfo, charItem, pPage);
         if (charInfo.m_Unicode >= 0xD800 && charInfo.m_Unicode <= 0xDBFF) { // high surrogate
             spHigh = charInfo.m_Unicode;
@@ -743,6 +751,7 @@ void FPDF_FillPageTexts(CPDF_Page* pPage, CPDF_TextPage* textPage, FPDF_PAGE_ITE
         return;
     int insert_index = 0;
     for (size_t i = 0; i < textsIndexVec.size() - 1; ++i) {
+        bool insert_item = false;
         insert_index += 1;
         int start_index = textsIndexVec[i][textsIndexVec[i].size() - 1];
         int end_index = textsIndexVec[i + 1][0];
@@ -754,6 +763,9 @@ void FPDF_FillPageTexts(CPDF_Page* pPage, CPDF_TextPage* textPage, FPDF_PAGE_ITE
                 FPDF_CHAR_INFO charInfo;
                 std::string faceName;
                 textPage->GetCharInfo(index, &charInfo);
+                // remove watermark texts
+                if (FPDF_IsWatermarkText(charInfo))
+                    continue;
                 FPDF_GetCharItem(charInfo, charItem, pPage);
                 if (charInfo.m_Unicode >= 0xD800 && charInfo.m_Unicode <= 0xDBFF) { // high surrogate
                     spHigh = charInfo.m_Unicode;
@@ -773,6 +785,7 @@ void FPDF_FillPageTexts(CPDF_Page* pPage, CPDF_TextPage* textPage, FPDF_PAGE_ITE
                     textItem.z_index = pageObj.texts[insert_index - 1].z_index;
                     pageObj.texts.insert(pageObj.texts.begin() + insert_index, textItem);
                     faceName = textItem.faceName;
+                    insert_item = true;
                 } else {
                     FPDF_TEXT_ITEM &textItem = pageObj.texts[insert_index];
                     textItem.chars.push_back(charItem);
@@ -782,7 +795,8 @@ void FPDF_FillPageTexts(CPDF_Page* pPage, CPDF_TextPage* textPage, FPDF_PAGE_ITE
                     FPDF_SaveGlyphs(charInfo, charItem, pageObj, faceName);
                 }
             }
-            ++insert_index;
+            if (insert_item)
+                ++insert_index;
         }
     }
 }

@@ -24,7 +24,7 @@ CONFIGURATION='Release'
 DepotTools_URL='https://chromium.googlesource.com/chromium/tools/depot_tools.git'
 DepotTools_DIR="$PWD/depot_tools"
 
-PDFium_URL='https://github.com/cheftin/PDFium.git' # or git@github.com:cheftin/PDFium.git
+PDFium_URL='https://github.com/PaodingAI/PDFium.git' # or git@github.com:PaodingAI/PDFium.git
 PDFium_SOURCE_DIR="$PWD/pdfium"
 
 

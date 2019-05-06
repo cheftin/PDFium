@@ -6,7 +6,7 @@ set PDFium_BRANCH=cheftin
 set DepotTools_URL=https://storage.googleapis.com/chrome-infra/depot_tools.zip
 set DepotTools_DIR=%CD%/depot_tools
 
-set PDFium_URL=https://github.com/cheftin/PDFium.git
+set PDFium_URL=https://github.com/PaodingAI/PDFium.git
 set PDFium_SOURCE_DIR=%CD%\pdfium
 
 set PDFium_BUILD_DIR=%PDFium_SOURCE_DIR%\out

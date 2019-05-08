@@ -674,8 +674,8 @@ void FPDF_InitTextItem(FPDF_TEXT_ITEM& textItem, CPDF_Page* pPage, FPDF_CHAR_INF
 }
 
 inline bool FPDF_IsWatermarkText(FPDF_CHAR_INFO& charInfo) {
-    return ((charInfo.m_Matrix.b != 0 && charInfo.m_Matrix.b != 1 && charInfo.m_Matrix.b != -1) ||
-        (charInfo.m_Matrix.c != 0 && charInfo.m_Matrix.c != 1 && charInfo.m_Matrix.c != -1));
+    return (abs(charInfo.m_Matrix.b) * 1000 > 1 || abs(charInfo.m_Matrix.c) * 1000 > 1) &&
+        !(charInfo.m_Matrix.Is90Rotated());
 }
 
 bool FPDF_ProcessTextObject(
@@ -743,6 +743,8 @@ bool FPDF_ProcessTextObject(
 }
 
 void FPDF_FillPageTexts(CPDF_Page* pPage, CPDF_TextPage* textPage, FPDF_PAGE_ITEM& pageObj, std::vector<std::vector<int>>& textsIndexVec, bool saveGlyphs) {
+    if (textsIndexVec.empty())
+        return;
     int processed_char_counts = 0;
     for (auto& vec : textsIndexVec) {
         processed_char_counts += vec.size();

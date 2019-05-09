@@ -675,8 +675,11 @@ void FPDF_InitTextItem(FPDF_TEXT_ITEM& textItem, CPDF_Page* pPage, FPDF_CHAR_INF
 }
 
 inline bool FPDF_IsWatermarkText(FPDF_CHAR_INFO& charInfo) {
-    return (fabs(charInfo.m_Matrix.b * 1000) > 1 || fabs(charInfo.m_Matrix.c * 1000) > 1) &&
-        !(charInfo.m_Matrix.Is90Rotated());
+    if ((fabs(charInfo.m_Matrix.b * 1000) < 1 && fabs(charInfo.m_Matrix.c * 1000) < 1) ||
+        charInfo.m_Matrix.Is90Rotated()) {
+        return false;
+    }
+    return fabs((charInfo.m_Matrix.b + charInfo.m_Matrix.c) * 1000) < 1;
 }
 
 bool FPDF_ProcessTextObject(

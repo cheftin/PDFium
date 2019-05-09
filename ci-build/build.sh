@@ -19,7 +19,8 @@ esac
 # Input
 PDFium_BRANCH=cheftin
 PDFium_SOURCE_REVIISON=unknown
-CONFIGURATION='Release'
+# CONFIGURATION='Release'
+CONFIGURATION='Debug'
 
 DepotTools_URL='https://chromium.googlesource.com/chromium/tools/depot_tools.git'
 DepotTools_DIR="$PWD/depot_tools"

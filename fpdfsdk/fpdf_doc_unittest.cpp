@@ -28,7 +28,7 @@ class CPDF_TestDocument final : public CPDF_Document {
  public:
   CPDF_TestDocument() : CPDF_Document() {}
 
-  void SetRoot(CPDF_Dictionary* root) { m_pRootDict = root; }
+  void SetRoot(CPDF_Dictionary* root) { m_pRootDict.Reset(root); }
   CPDF_IndirectObjectHolder* GetHolder() { return this; }
 };
 
@@ -43,7 +43,7 @@ class PDFDocTest : public testing::Test {
     CPDF_ModuleMgr::Get()->Init();
     auto pTestDoc = pdfium::MakeUnique<CPDF_TestDocument>();
     m_pIndirectObjs = pTestDoc->GetHolder();
-    m_pRootObj = m_pIndirectObjs->NewIndirect<CPDF_Dictionary>();
+    m_pRootObj.Reset(m_pIndirectObjs->NewIndirect<CPDF_Dictionary>());
     pTestDoc->SetRoot(m_pRootObj.Get());
     m_pDoc.reset(FPDFDocumentFromCPDFDocument(pTestDoc.release()));
   }
@@ -68,14 +68,13 @@ class PDFDocTest : public testing::Test {
  protected:
   ScopedFPDFDocument m_pDoc;
   UnownedPtr<CPDF_IndirectObjectHolder> m_pIndirectObjs;
-  UnownedPtr<CPDF_Dictionary> m_pRootObj;
+  RetainPtr<CPDF_Dictionary> m_pRootObj;
 };
 
 TEST_F(PDFDocTest, FindBookmark) {
   {
     // No bookmark information.
-    std::unique_ptr<unsigned short, pdfium::FreeDeleter> title =
-        GetFPDFWideString(L"");
+    ScopedFPDFWideString title = GetFPDFWideString(L"");
     EXPECT_EQ(nullptr, FPDFBookmark_Find(m_pDoc.get(), title.get()));
 
     title = GetFPDFWideString(L"Preface");
@@ -84,8 +83,7 @@ TEST_F(PDFDocTest, FindBookmark) {
   {
     // Empty bookmark tree.
     m_pRootObj->SetNewFor<CPDF_Dictionary>("Outlines");
-    std::unique_ptr<unsigned short, pdfium::FreeDeleter> title =
-        GetFPDFWideString(L"");
+    ScopedFPDFWideString title = GetFPDFWideString(L"");
     EXPECT_EQ(nullptr, FPDFBookmark_Find(m_pDoc.get(), title.get()));
 
     title = GetFPDFWideString(L"Preface");
@@ -118,8 +116,7 @@ TEST_F(PDFDocTest, FindBookmark) {
                                           bookmarks[0].num);
 
     // Title with no match.
-    std::unique_ptr<unsigned short, pdfium::FreeDeleter> title =
-        GetFPDFWideString(L"Chapter 3");
+    ScopedFPDFWideString title = GetFPDFWideString(L"Chapter 3");
     EXPECT_EQ(nullptr, FPDFBookmark_Find(m_pDoc.get(), title.get()));
 
     // Title with partial match only.
@@ -163,8 +160,7 @@ TEST_F(PDFDocTest, FindBookmark) {
                                           bookmarks[0].num);
 
     // Title with no match.
-    std::unique_ptr<unsigned short, pdfium::FreeDeleter> title =
-        GetFPDFWideString(L"Chapter 3");
+    ScopedFPDFWideString title = GetFPDFWideString(L"Chapter 3");
     EXPECT_EQ(nullptr, FPDFBookmark_Find(m_pDoc.get(), title.get()));
 
     // Title with a match.
@@ -205,8 +201,7 @@ TEST_F(PDFDocTest, FindBookmark) {
                                           bookmarks[0].num);
 
     // Title with no match.
-    std::unique_ptr<unsigned short, pdfium::FreeDeleter> title =
-        GetFPDFWideString(L"Chapter 8");
+    ScopedFPDFWideString title = GetFPDFWideString(L"Chapter 8");
     EXPECT_EQ(nullptr, FPDFBookmark_Find(m_pDoc.get(), title.get()));
 
     // Title with a match.
@@ -217,7 +212,7 @@ TEST_F(PDFDocTest, FindBookmark) {
 }
 
 TEST_F(PDFDocTest, GetLocationInPage) {
-  auto array = pdfium::MakeUnique<CPDF_Array>();
+  auto array = pdfium::MakeRetain<CPDF_Array>();
   array->AddNew<CPDF_Number>(0);  // Page Index.
   array->AddNew<CPDF_Name>("XYZ");
   array->AddNew<CPDF_Number>(4);  // X
@@ -231,7 +226,7 @@ TEST_F(PDFDocTest, GetLocationInPage) {
   FS_FLOAT y;
   FS_FLOAT zoom;
 
-  EXPECT_TRUE(FPDFDest_GetLocationInPage(FPDFDestFromCPDFArray(array.get()),
+  EXPECT_TRUE(FPDFDest_GetLocationInPage(FPDFDestFromCPDFArray(array.Get()),
                                          &hasX, &hasY, &hasZoom, &x, &y,
                                          &zoom));
   EXPECT_TRUE(hasX);
@@ -244,15 +239,15 @@ TEST_F(PDFDocTest, GetLocationInPage) {
   array->SetNewAt<CPDF_Null>(2);
   array->SetNewAt<CPDF_Null>(3);
   array->SetNewAt<CPDF_Null>(4);
-  EXPECT_TRUE(FPDFDest_GetLocationInPage(FPDFDestFromCPDFArray(array.get()),
+  EXPECT_TRUE(FPDFDest_GetLocationInPage(FPDFDestFromCPDFArray(array.Get()),
                                          &hasX, &hasY, &hasZoom, &x, &y,
                                          &zoom));
   EXPECT_FALSE(hasX);
   EXPECT_FALSE(hasY);
   EXPECT_FALSE(hasZoom);
 
-  array = pdfium::MakeUnique<CPDF_Array>();
-  EXPECT_FALSE(FPDFDest_GetLocationInPage(FPDFDestFromCPDFArray(array.get()),
+  array = pdfium::MakeRetain<CPDF_Array>();
+  EXPECT_FALSE(FPDFDest_GetLocationInPage(FPDFDestFromCPDFArray(array.Get()),
                                           &hasX, &hasY, &hasZoom, &x, &y,
                                           &zoom));
 }

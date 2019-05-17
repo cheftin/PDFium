@@ -239,7 +239,7 @@ FPDFPage_CreateAnnot(FPDF_PAGE page, FPDF_ANNOTATION_SUBTYPE subtype) {
   pDict->SetNewFor<CPDF_Name>(pdfium::annotation::kSubtype,
                               CPDF_Annot::AnnotSubtypeToString(
                                   static_cast<CPDF_Annot::Subtype>(subtype)));
-  auto pNewAnnot = pdfium::MakeUnique<CPDF_AnnotContext>(pDict.get(), pPage);
+  auto pNewAnnot = pdfium::MakeUnique<CPDF_AnnotContext>(pDict.Get(), pPage);
 
   CPDF_Array* pAnnotList = pPage->GetDict()->GetArrayFor("Annots");
   if (!pAnnotList)
@@ -294,11 +294,10 @@ FPDF_EXPORT int FPDF_CALLCONV FPDFPage_GetAnnotIndex(FPDF_PAGE page,
     return -1;
 
   CPDF_ArrayLocker locker(pAnnots);
-  auto it =
-      std::find_if(locker.begin(), locker.end(),
-                   [pAnnotDict](const std::unique_ptr<CPDF_Object>& candidate) {
-                     return candidate->GetDirect() == pAnnotDict;
-                   });
+  auto it = std::find_if(locker.begin(), locker.end(),
+                         [pAnnotDict](const RetainPtr<CPDF_Object>& candidate) {
+                           return candidate->GetDirect() == pAnnotDict;
+                         });
 
   if (it == locker.end())
     return -1;
@@ -360,13 +359,12 @@ FPDFAnnot_UpdateObject(FPDF_ANNOTATION annot, FPDF_PAGEOBJECT obj) {
 
   // Check that the object is already in this annotation's object list.
   CPDF_Form* pForm = pAnnot->GetForm();
-  const CPDF_PageObjectList* pObjList = pForm->GetPageObjectList();
   auto it =
-      std::find_if(pObjList->begin(), pObjList->end(),
+      std::find_if(pForm->begin(), pForm->end(),
                    [pObj](const std::unique_ptr<CPDF_PageObject>& candidate) {
                      return candidate.get() == pObj;
                    });
-  if (it == pObjList->end())
+  if (it == pForm->end())
     return false;
 
   // Update the content stream data in the annotation's AP stream.
@@ -407,13 +405,12 @@ FPDFAnnot_AppendObject(FPDF_ANNOTATION annot, FPDF_PAGEOBJECT obj) {
   // Note that an object that came from a different annotation must not be
   // passed here, since an object cannot belong to more than one annotation.
   CPDF_Form* pForm = pAnnot->GetForm();
-  const CPDF_PageObjectList* pObjList = pForm->GetPageObjectList();
   auto it =
-      std::find_if(pObjList->begin(), pObjList->end(),
+      std::find_if(pForm->begin(), pForm->end(),
                    [pObj](const std::unique_ptr<CPDF_PageObject>& candidate) {
                      return candidate.get() == pObj;
                    });
-  if (it != pObjList->end())
+  if (it != pForm->end())
     return false;
 
   // Append the object to the object list.
@@ -437,7 +434,7 @@ FPDF_EXPORT int FPDF_CALLCONV FPDFAnnot_GetObjectCount(FPDF_ANNOTATION annot) {
 
     pAnnot->SetForm(pStream);
   }
-  return pdfium::CollectionSize<int>(*pAnnot->GetForm()->GetPageObjectList());
+  return pAnnot->GetForm()->GetPageObjectCount();
 }
 
 FPDF_EXPORT FPDF_PAGEOBJECT FPDF_CALLCONV
@@ -719,7 +716,7 @@ FPDFAnnot_SetStringValue(FPDF_ANNOTATION annot,
 FPDF_EXPORT unsigned long FPDF_CALLCONV
 FPDFAnnot_GetStringValue(FPDF_ANNOTATION annot,
                          FPDF_BYTESTRING key,
-                         void* buffer,
+                         FPDF_WCHAR* buffer,
                          unsigned long buflen) {
   CPDF_Dictionary* pAnnotDict = GetAnnotDictFromFPDFAnnotation(annot);
   if (!pAnnotDict)
@@ -759,11 +756,12 @@ FPDFAnnot_SetAP(FPDF_ANNOTATION annot,
   if (appearanceMode < 0 || appearanceMode >= FPDF_ANNOT_APPEARANCEMODE_COUNT)
     return false;
 
-  constexpr const char* modeKeyForMode[] = {"N", "R", "D"};
-  static_assert(FX_ArraySize(modeKeyForMode) == FPDF_ANNOT_APPEARANCEMODE_COUNT,
-                "length of modeKeyForMode should be equal to "
-                "FPDF_ANNOT_APPEARANCEMODE_COUNT");
-  const char* modeKey = modeKeyForMode[appearanceMode];
+  static constexpr const char* kModeKeyForMode[] = {"N", "R", "D"};
+  static_assert(
+      FX_ArraySize(kModeKeyForMode) == FPDF_ANNOT_APPEARANCEMODE_COUNT,
+      "length of kModeKeyForMode should be equal to "
+      "FPDF_ANNOT_APPEARANCEMODE_COUNT");
+  const char* modeKey = kModeKeyForMode[appearanceMode];
 
   CPDF_Dictionary* pApDict = pAnnotDict->GetDictFor(pdfium::annotation::kAP);
 
@@ -774,9 +772,8 @@ FPDFAnnot_SetAP(FPDF_ANNOTATION annot,
       pApDict = pAnnotDict->SetNewFor<CPDF_Dictionary>(pdfium::annotation::kAP);
 
     ByteString newValue = PDF_EncodeText(WideStringFromFPDFWideString(value));
-    auto pNewApStream = pdfium::MakeUnique<CPDF_Stream>();
+    auto* pNewApStream = pApDict->SetNewFor<CPDF_Stream>(modeKey);
     pNewApStream->SetData(newValue.AsRawSpan());
-    pApDict->SetFor(modeKey, std::move(pNewApStream));
   } else {
     if (pApDict) {
       if (appearanceMode == FPDF_ANNOT_APPEARANCEMODE_NORMAL)
@@ -792,7 +789,7 @@ FPDFAnnot_SetAP(FPDF_ANNOTATION annot,
 FPDF_EXPORT unsigned long FPDF_CALLCONV
 FPDFAnnot_GetAP(FPDF_ANNOTATION annot,
                 FPDF_ANNOT_APPEARANCEMODE appearanceMode,
-                void* buffer,
+                FPDF_WCHAR* buffer,
                 unsigned long buflen) {
   CPDF_Dictionary* pAnnotDict = GetAnnotDictFromFPDFAnnotation(annot);
   if (!pAnnotDict)
@@ -905,7 +902,7 @@ FPDF_EXPORT unsigned long FPDF_CALLCONV
 FPDFAnnot_GetOptionLabel(FPDF_FORMHANDLE hHandle,
                          FPDF_ANNOTATION annot,
                          int index,
-                         void* buffer,
+                         FPDF_WCHAR* buffer,
                          unsigned long buflen) {
   CPDFSDK_InteractiveForm* pForm = FormHandleToInteractiveForm(hHandle);
   if (!pForm)
@@ -922,4 +919,32 @@ FPDFAnnot_GetOptionLabel(FPDF_FORMHANDLE hHandle,
 
   WideString ws = pFormField->GetOptionLabel(index);
   return Utf16EncodeMaybeCopyAndReturnLength(ws, buffer, buflen);
+}
+
+FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
+FPDFAnnot_GetFontSize(FPDF_FORMHANDLE hHandle,
+                      FPDF_ANNOTATION annot,
+                      float* value) {
+  if (!value)
+    return false;
+
+  CPDFSDK_InteractiveForm* pForm = FormHandleToInteractiveForm(hHandle);
+  if (!pForm)
+    return false;
+
+  CPDF_Dictionary* pAnnotDict = GetAnnotDictFromFPDFAnnotation(annot);
+  if (!pAnnotDict)
+    return false;
+
+  CPDF_InteractiveForm* pPDFForm = pForm->GetInteractiveForm();
+  CPDF_FormControl* pFormControl = pPDFForm->GetControlByDict(pAnnotDict);
+  if (!pFormControl)
+    return false;
+
+  CPDFSDK_Widget* pWidget = pForm->GetWidget(pFormControl);
+  if (!pWidget)
+    return false;
+
+  *value = pWidget->GetFontSize();
+  return true;
 }

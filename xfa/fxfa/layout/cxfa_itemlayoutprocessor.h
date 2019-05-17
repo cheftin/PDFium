@@ -21,13 +21,13 @@
 
 constexpr float kXFALayoutPrecision = 0.0005f;
 
-class CXFA_ContainerLayoutItem;
 class CXFA_ContentLayoutItem;
 class CXFA_ItemLayoutProcessor;
 class CXFA_LayoutContext;
 class CXFA_LayoutPageMgr;
 class CXFA_LayoutProcessor;
 class CXFA_Node;
+class CXFA_ViewLayoutItem;
 
 class CXFA_ItemLayoutProcessor {
  public:
@@ -56,7 +56,7 @@ class CXFA_ItemLayoutProcessor {
                   float fHeightLimit,
                   float fRealHeight,
                   CXFA_LayoutContext* pContext);
-  void DoLayoutPageArea(CXFA_ContainerLayoutItem* pPageAreaLayoutItem);
+  void DoLayoutPageArea(CXFA_ViewLayoutItem* pPageAreaLayoutItem);
 
   CXFA_Node* GetFormNode() { return m_pFormNode; }
   CXFA_ContentLayoutItem* ExtractLayoutItem();
@@ -176,6 +176,13 @@ class CXFA_ItemLayoutProcessor {
   Optional<Stage> HandleBookendTrailer(CXFA_Node* pParentContainer,
                                        CXFA_Node** pCurActionNode);
   void ProcessKeepNodesEnd();
+  void AdjustContainerSpecifiedSize(CXFA_LayoutContext* pContext,
+                                    CFX_SizeF* pSize,
+                                    bool* pContainerWidthAutoSize,
+                                    bool* pContainerHeightAutoSize);
+  CXFA_ContentLayoutItem* FindLastContentLayoutItem(
+      XFA_AttributeValue eFlowStrategy);
+  CFX_SizeF CalculateLayoutItemSize(const CXFA_ContentLayoutItem* pLayoutChild);
 
   Stage m_nCurChildNodeStage = Stage::kNone;
   Result m_ePreProcessRs = Result::kDone;

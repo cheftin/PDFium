@@ -8,15 +8,20 @@
 #include <vector>
 
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/base/ptr_util.h"
 
 namespace fxcrt {
 namespace {
 
 class PseudoObservable final : public Observable<PseudoObservable> {
  public:
-  PseudoObservable() {}
   int SomeMethod() { return 42; }
   size_t ActiveObservedPtrs() const { return ActiveObserversForTesting(); }
+};
+
+class SelfObservable final : public Observable<SelfObservable> {
+ public:
+  ObservedPtr m_pOther;
 };
 
 }  // namespace
@@ -27,11 +32,13 @@ TEST(ObservePtr, Null) {
 }
 
 TEST(ObservePtr, LivesLonger) {
-  PseudoObservable* pObs = new PseudoObservable;
-  PseudoObservable::ObservedPtr ptr(pObs);
-  EXPECT_NE(nullptr, ptr.Get());
-  EXPECT_EQ(1u, pObs->ActiveObservedPtrs());
-  delete pObs;
+  PseudoObservable::ObservedPtr ptr;
+  {
+    auto pObs = pdfium::MakeUnique<PseudoObservable>();
+    ptr.Reset(pObs.get());
+    EXPECT_NE(nullptr, ptr.Get());
+    EXPECT_EQ(1u, pObs->ActiveObservedPtrs());
+  }
   EXPECT_EQ(nullptr, ptr.Get());
 }
 
@@ -183,6 +190,26 @@ TEST(ObservePtr, Bool) {
   bool obj1_bool = !!obj1_ptr;
   EXPECT_FALSE(null_bool);
   EXPECT_TRUE(obj1_bool);
+}
+
+TEST(ObservePtr, SelfObservable) {
+  SelfObservable thing;
+  thing.m_pOther.Reset(&thing);
+  EXPECT_EQ(&thing, thing.m_pOther.Get());
+  // Must be no ASAN violations upon cleanup here.
+}
+
+TEST(ObservePtr, PairwiseObservable) {
+  SelfObservable thing1;
+  {
+    SelfObservable thing2;
+    thing1.m_pOther.Reset(&thing2);
+    thing2.m_pOther.Reset(&thing1);
+    EXPECT_EQ(&thing2, thing1.m_pOther.Get());
+    EXPECT_EQ(&thing1, thing2.m_pOther.Get());
+  }
+  EXPECT_EQ(nullptr, thing1.m_pOther.Get());
+  // Must be no ASAN violations upon cleanup here.
 }
 
 }  // namespace fxcrt

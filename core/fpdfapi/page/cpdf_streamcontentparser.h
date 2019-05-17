@@ -42,7 +42,7 @@ class CPDF_StreamContentParser {
                            CPDF_PageObjectHolder* pObjectHolder,
                            CPDF_Dictionary* pResources,
                            const CFX_FloatRect& rcBBox,
-                           CPDF_AllStates* pAllStates,
+                           const CPDF_AllStates* pAllStates,
                            std::set<const uint8_t*>* parsedSet);
   ~CPDF_StreamContentParser();
 
@@ -72,7 +72,7 @@ class CPDF_StreamContentParser {
     Type m_Type;
     FX_Number m_Number;
     ByteString m_Name;
-    std::unique_ptr<CPDF_Object> m_pObject;
+    RetainPtr<CPDF_Object> m_pObject;
   };
 
   static const int kParamBufSize = 16;
@@ -82,7 +82,7 @@ class CPDF_StreamContentParser {
 
   void AddNameParam(ByteStringView str);
   void AddNumberParam(ByteStringView str);
-  void AddObjectParam(std::unique_ptr<CPDF_Object> pObj);
+  void AddObjectParam(RetainPtr<CPDF_Object> pObj);
   int GetNextParamPos();
   void ClearAllParams();
   CPDF_Object* GetObject(uint32_t index);
@@ -107,7 +107,7 @@ class CPDF_StreamContentParser {
   void AddPathPoint(float x, float y, FXPT_TYPE type, bool close);
   void AddPathRect(float x, float y, float w, float h);
   void AddPathObject(int FillType, bool bStroke);
-  CPDF_ImageObject* AddImage(std::unique_ptr<CPDF_Stream> pStream);
+  CPDF_ImageObject* AddImage(RetainPtr<CPDF_Stream> pStream);
   CPDF_ImageObject* AddImage(uint32_t streamObjNum);
   CPDF_ImageObject* AddImage(const RetainPtr<CPDF_Image>& pImage);
 
@@ -202,9 +202,9 @@ class CPDF_StreamContentParser {
   void Handle_Invalid();
 
   UnownedPtr<CPDF_Document> const m_pDocument;
-  UnownedPtr<CPDF_Dictionary> const m_pPageResources;
-  UnownedPtr<CPDF_Dictionary> const m_pParentResources;
-  UnownedPtr<CPDF_Dictionary> const m_pResources;
+  RetainPtr<CPDF_Dictionary> const m_pPageResources;
+  RetainPtr<CPDF_Dictionary> const m_pParentResources;
+  RetainPtr<CPDF_Dictionary> const m_pResources;
   UnownedPtr<CPDF_PageObjectHolder> const m_pObjectHolder;
   UnownedPtr<std::set<const uint8_t*>> const m_ParsedSet;
   CFX_Matrix m_mtContentToUser;

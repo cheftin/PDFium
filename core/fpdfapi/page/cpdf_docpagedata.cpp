@@ -26,6 +26,7 @@
 #include "core/fpdfapi/parser/cpdf_name.h"
 #include "core/fpdfapi/parser/cpdf_stream.h"
 #include "core/fpdfapi/parser/cpdf_stream_acc.h"
+#include "core/fxcrt/fx_safe_types.h"
 #include "third_party/base/ptr_util.h"
 #include "third_party/base/stl_util.h"
 
@@ -365,10 +366,10 @@ CPDF_Pattern* CPDF_DocPageData::GetPattern(CPDF_Object* pPatternObj,
       return nullptr;
 
     int type = pDict->GetIntegerFor("PatternType");
-    if (type == CPDF_Pattern::TILING) {
+    if (type == CPDF_Pattern::kTiling) {
       pPattern = pdfium::MakeUnique<CPDF_TilingPattern>(m_pPDFDoc.Get(),
                                                         pPatternObj, matrix);
-    } else if (type == CPDF_Pattern::SHADING) {
+    } else if (type == CPDF_Pattern::kShading) {
       pPattern = pdfium::MakeUnique<CPDF_ShadingPattern>(
           m_pPDFDoc.Get(), pPatternObj, false, matrix);
     } else {

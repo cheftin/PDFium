@@ -22,7 +22,7 @@ CPDF_FlateEncoder::CPDF_FlateEncoder(const CPDF_Stream* pStream,
     : m_pAcc(pdfium::MakeRetain<CPDF_StreamAcc>(pStream)), m_dwSize(0) {
   m_pAcc->LoadAllDataRaw();
 
-  bool bHasFilter = pStream && pStream->HasFilter();
+  bool bHasFilter = pStream->HasFilter();
   if (bHasFilter && !bFlateEncode) {
     auto pDestAcc = pdfium::MakeRetain<CPDF_StreamAcc>(pStream);
     pDestAcc->LoadAllDataFiltered();
@@ -69,13 +69,13 @@ void CPDF_FlateEncoder::CloneDict() {
 
 CPDF_Dictionary* CPDF_FlateEncoder::GetClonedDict() {
   ASSERT(!m_pDict);
-  return m_pClonedDict.get();
+  return m_pClonedDict.Get();
 }
 
 const CPDF_Dictionary* CPDF_FlateEncoder::GetDict() const {
   if (m_pClonedDict) {
     ASSERT(!m_pDict);
-    return m_pClonedDict.get();
+    return m_pClonedDict.Get();
   }
 
   return m_pDict.Get();

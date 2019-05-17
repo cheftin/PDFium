@@ -118,7 +118,7 @@ CPDF_Dictionary* GetOrCreateMarkParamsDict(FPDF_DOCUMENT document,
   // If the Params dict does not exist, create a new one.
   if (!pParams) {
     auto new_dict = pDoc->New<CPDF_Dictionary>();
-    pParams = new_dict.get();
+    pParams = new_dict.Get();
     pMarkItem->SetDirectDict(std::move(new_dict));
   }
 
@@ -141,17 +141,10 @@ CPDF_FormObject* CPDFFormObjectFromFPDFPageObject(FPDF_PAGEOBJECT page_object) {
   return pPageObj ? pPageObj->AsForm() : nullptr;
 }
 
-const CPDF_PageObjectList* CPDFPageObjListFromFPDFFormObject(
+const CPDF_PageObjectHolder* CPDFPageObjHolderFromFPDFFormObject(
     FPDF_PAGEOBJECT page_object) {
   CPDF_FormObject* pFormObject = CPDFFormObjectFromFPDFPageObject(page_object);
-  if (!pFormObject)
-    return nullptr;
-
-  const CPDF_Form* pForm = pFormObject->form();
-  if (!pForm)
-    return nullptr;
-
-  return pForm->GetPageObjectList();
+  return pFormObject ? pFormObject->form() : nullptr;
 }
 
 }  // namespace
@@ -842,15 +835,13 @@ FPDFPageObj_SetLineCap(FPDF_PAGEOBJECT page_object, int line_cap) {
 
 FPDF_EXPORT int FPDF_CALLCONV
 FPDFFormObj_CountObjects(FPDF_PAGEOBJECT page_object) {
-  const CPDF_PageObjectList* pObjectList =
-      CPDFPageObjListFromFPDFFormObject(page_object);
-  return pObjectList ? pObjectList->size() : -1;
+  const auto* pObjectList = CPDFPageObjHolderFromFPDFFormObject(page_object);
+  return pObjectList ? pObjectList->GetPageObjectCount() : -1;
 }
 
 FPDF_EXPORT FPDF_PAGEOBJECT FPDF_CALLCONV
 FPDFFormObj_GetObject(FPDF_PAGEOBJECT form_object, unsigned long index) {
-  const CPDF_PageObjectList* pObjectList =
-      CPDFPageObjListFromFPDFFormObject(form_object);
+  const auto* pObjectList = CPDFPageObjHolderFromFPDFFormObject(form_object);
   if (!pObjectList)
     return nullptr;
 

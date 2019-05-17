@@ -199,7 +199,7 @@ void FFLCommon(FPDF_FORMHANDLE hHandle,
 #endif
 
   RetainPtr<CFX_DIBitmap> holder(CFXDIBitmapFromFPDFBitmap(bitmap));
-  pDevice->Attach(holder, false, nullptr, false);
+  pDevice->Attach(holder, !!(flags & FPDF_REVERSE_BYTE_ORDER), nullptr, false);
   {
     CFX_RenderDevice::StateRestorer restorer(pDevice.get());
     pDevice->SetClip_Rect(rect);
@@ -280,9 +280,7 @@ FPDFPage_HasFormFieldAtPoint(FPDF_FORMHANDLE hHandle,
     if (pXFAAnnot->GetFormFieldType() == FormFieldType::kXFA)
       continue;
 
-    CFX_RectF rcBBox = pXFAAnnot->GetWidgetRect();
-    CFX_FloatRect rcWidget(rcBBox.left, rcBBox.top, rcBBox.left + rcBBox.width,
-                           rcBBox.top + rcBBox.height);
+    CFX_FloatRect rcWidget = pXFAAnnot->GetWidgetRect().ToFloatRect();
     rcWidget.Inflate(1.0f, 1.0f);
     if (rcWidget.Contains(CFX_PointF(static_cast<float>(page_x),
                                      static_cast<float>(page_y)))) {

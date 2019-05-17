@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 
+#include "build/build_config.h"
 #include "core/fpdfapi/cpdf_modulemgr.h"
 #include "core/fpdfapi/cpdf_pagerendercontext.h"
 #include "core/fpdfapi/page/cpdf_page.h"
@@ -49,7 +50,7 @@
 #include "fxbarcode/BC_Library.h"
 #endif  // PDF_ENABLE_XFA
 
-#if _FX_PLATFORM_ == _FX_PLATFORM_WINDOWS_
+#if defined(OS_WIN)
 #include "core/fxge/cfx_windowsrenderdevice.h"
 #include "public/fpdf_edit.h"
 
@@ -68,7 +69,7 @@ static_assert(WindowsPrintMode::kModePostScript2PassThrough ==
 static_assert(WindowsPrintMode::kModePostScript3PassThrough ==
                   FPDF_PRINTMODE_POSTSCRIPT3_PASSTHROUGH,
               "WindowsPrintMode::kModePostScript3PassThrough value mismatch");
-#endif  // _FX_PLATFORM_ == _FX_PLATFORM_WINDOWS_
+#endif  // defined(OS_WIN)
 
 namespace {
 
@@ -1056,7 +1057,7 @@ FPDF_GetNamedDestByName(FPDF_DOCUMENT document, FPDF_BYTESTRING name) {
   CPDF_NameTree name_tree(pDoc, "Dests");
   ByteStringView name_view(name);
   return FPDFDestFromCPDFArray(
-      name_tree.LookupNamedDest(pDoc, PDF_DecodeText(name_view.span())));
+      name_tree.LookupNamedDest(pDoc, PDF_DecodeText(name_view.raw_span())));
 }
 
 #ifdef PDF_ENABLE_V8
@@ -1153,14 +1154,14 @@ FPDF_EXPORT FPDF_DEST FPDF_CALLCONV FPDF_GetNamedDest(FPDF_DOCUMENT document,
     CPDF_DictionaryLocker locker(pDest);
     for (const auto& it : locker) {
       bsName = it.first.AsStringView();
-      pDestObj = it.second.get();
+      pDestObj = it.second.Get();
       if (!pDestObj)
         continue;
       if (i == index)
         break;
       i++;
     }
-    wsName = PDF_DecodeText(bsName.span());
+    wsName = PDF_DecodeText(bsName.raw_span());
   } else {
     pDestObj = nameTree.LookupValueAndName(index, &wsName);
   }

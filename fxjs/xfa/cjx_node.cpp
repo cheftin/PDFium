@@ -183,9 +183,8 @@ CJS_Result CJX_Node::clone(CFX_V8* runtime,
 
   CXFA_Node* pCloneNode = GetXFANode()->Clone(runtime->ToBoolean(params[0]));
   CFXJSE_Value* value =
-      GetDocument()->GetScriptContext()->GetJSValueFromMap(pCloneNode);
-  if (!value)
-    return CJS_Result::Success(runtime->NewNull());
+      GetDocument()->GetScriptContext()->GetOrCreateJSBindingFromMap(
+          pCloneNode);
 
   return CJS_Result::Success(
       value->DirectGetValue().Get(runtime->GetIsolate()));
@@ -219,9 +218,7 @@ CJS_Result CJX_Node::getElement(
     return CJS_Result::Success(runtime->NewNull());
 
   CFXJSE_Value* value =
-      GetDocument()->GetScriptContext()->GetJSValueFromMap(pNode);
-  if (!value)
-    return CJS_Result::Success(runtime->NewNull());
+      GetDocument()->GetScriptContext()->GetOrCreateJSBindingFromMap(pNode);
 
   return CJS_Result::Success(
       value->DirectGetValue().Get(runtime->GetIsolate()));
@@ -282,7 +279,7 @@ CJS_Result CJX_Node::loadXML(CFX_V8* runtime,
   top_xml_doc->AppendNodesFrom(pParser->GetXMLDoc().get());
 
   if (bIgnoreRoot &&
-      (pXMLNode->GetType() != FX_XMLNODE_Element ||
+      (pXMLNode->GetType() != CFX_XMLNode::Type::kElement ||
        XFA_RecognizeRichText(static_cast<CFX_XMLElement*>(pXMLNode)))) {
     bIgnoreRoot = false;
   }
@@ -311,16 +308,13 @@ CJS_Result CJX_Node::loadXML(CFX_V8* runtime,
     CFX_XMLNode* pXMLChild = pXMLNode->GetFirstChild();
     while (pXMLChild) {
       CFX_XMLNode* pXMLSibling = pXMLChild->GetNextSibling();
-      pXMLNode->RemoveChildNode(pXMLChild);
-      pFakeXMLRoot->AppendChild(pXMLChild);
+      pXMLNode->RemoveChild(pXMLChild);
+      pFakeXMLRoot->AppendLastChild(pXMLChild);
       pXMLChild = pXMLSibling;
     }
   } else {
-    CFX_XMLNode* pXMLParent = pXMLNode->GetParent();
-    if (pXMLParent)
-      pXMLParent->RemoveChildNode(pXMLNode);
-
-    pFakeXMLRoot->AppendChild(pXMLNode);
+    pXMLNode->RemoveSelfIfParented();
+    pFakeXMLRoot->AppendLastChild(pXMLNode);
   }
 
   pParser->ConstructXFANode(pFakeRoot, pFakeXMLRoot);
@@ -334,16 +328,16 @@ CJS_Result CJX_Node::loadXML(CFX_V8* runtime,
     int32_t index = 0;
     while (pNewChild) {
       CXFA_Node* pItem = pNewChild->GetNextSibling();
-      pFakeRoot->RemoveChild(pNewChild, true);
-      GetXFANode()->InsertChild(index++, pNewChild);
+      pFakeRoot->RemoveChildAndNotify(pNewChild, true);
+      GetXFANode()->InsertChildAndNotify(index++, pNewChild);
       pNewChild->SetFlagAndNotify(XFA_NodeFlag_Initialized);
       pNewChild = pItem;
     }
 
     while (pChild) {
       CXFA_Node* pItem = pChild->GetNextSibling();
-      GetXFANode()->RemoveChild(pChild, true);
-      pFakeRoot->InsertChild(pChild, nullptr);
+      GetXFANode()->RemoveChildAndNotify(pChild, true);
+      pFakeRoot->InsertChildAndNotify(pChild, nullptr);
       pChild = pItem;
     }
 
@@ -362,8 +356,8 @@ CJS_Result CJX_Node::loadXML(CFX_V8* runtime,
     CXFA_Node* pChild = pFakeRoot->GetFirstChild();
     while (pChild) {
       CXFA_Node* pItem = pChild->GetNextSibling();
-      pFakeRoot->RemoveChild(pChild, true);
-      GetXFANode()->InsertChild(pChild, nullptr);
+      pFakeRoot->RemoveChildAndNotify(pChild, true);
+      GetXFANode()->InsertChildAndNotify(pChild, nullptr);
       pChild->SetFlagAndNotify(XFA_NodeFlag_Initialized);
       pChild = pItem;
     }
@@ -405,7 +399,7 @@ CJS_Result CJX_Node::saveXML(CFX_V8* runtime,
   CFX_XMLNode* pElement = nullptr;
   if (GetXFANode()->GetPacketType() == XFA_PacketType::Datasets) {
     pElement = GetXFANode()->GetXMLMappingNode();
-    if (!pElement || pElement->GetType() != FX_XMLNODE_Element) {
+    if (!pElement || pElement->GetType() != CFX_XMLNode::Type::kElement) {
       return CJS_Result::Success(
           runtime->NewString(bsXMLHeader.AsStringView()));
     }
@@ -470,7 +464,7 @@ void CJX_Node::model(CFXJSE_Value* pValue,
     ThrowInvalidPropertyException();
     return;
   }
-  pValue->Assign(GetDocument()->GetScriptContext()->GetJSValueFromMap(
+  pValue->Assign(GetDocument()->GetScriptContext()->GetOrCreateJSBindingFromMap(
       GetXFANode()->GetModelNode()));
 }
 
@@ -509,8 +503,9 @@ void CJX_Node::oneOfChild(CFXJSE_Value* pValue,
   std::vector<CXFA_Node*> properties = GetXFANode()->GetNodeList(
       XFA_NODEFILTER_OneOfProperty, XFA_Element::Unknown);
   if (!properties.empty()) {
-    pValue->Assign(GetDocument()->GetScriptContext()->GetJSValueFromMap(
-        properties.front()));
+    pValue->Assign(
+        GetDocument()->GetScriptContext()->GetOrCreateJSBindingFromMap(
+            properties.front()));
   }
 }
 

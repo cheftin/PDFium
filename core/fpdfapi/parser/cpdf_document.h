@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "build/build_config.h"
 #include "core/fpdfapi/page/cpdf_image.h"
 #include "core/fpdfapi/page/cpdf_page.h"
 #include "core/fpdfapi/parser/cpdf_object.h"
@@ -125,7 +126,7 @@ class CPDF_Document : public Observable<CPDF_Document>,
                              const CPDF_FontEncoding* pEncoding);
   CPDF_Font* AddFont(CFX_Font* pFont, int charset);
 
-#if _FX_PLATFORM_ == _FX_PLATFORM_WINDOWS_
+#if defined(OS_WIN)
   CPDF_Font* AddWindowsFont(LOGFONTA* pLogFont);
 #endif
 
@@ -148,7 +149,7 @@ class CPDF_Document : public Observable<CPDF_Document>,
                     uint32_t objnum,
                     int* index,
                     int level) const;
-  std::unique_ptr<CPDF_Object> ParseIndirectObject(uint32_t objnum) override;
+  RetainPtr<CPDF_Object> ParseIndirectObject(uint32_t objnum) override;
   size_t CalculateEncodingDict(int charset, CPDF_Dictionary* pBaseDict);
   const CPDF_Dictionary* GetPagesDict() const;
   CPDF_Dictionary* GetPagesDict();
@@ -168,8 +169,8 @@ class CPDF_Document : public Observable<CPDF_Document>,
   CPDF_Parser::Error HandleLoadResult(CPDF_Parser::Error error);
 
   std::unique_ptr<CPDF_Parser> m_pParser;
-  UnownedPtr<CPDF_Dictionary> m_pRootDict;
-  UnownedPtr<CPDF_Dictionary> m_pInfoDict;
+  RetainPtr<CPDF_Dictionary> m_pRootDict;
+  RetainPtr<CPDF_Dictionary> m_pInfoDict;
 
   // Vector of pairs to know current position in the page tree. The index in the
   // vector corresponds to the level being described. The pair contains a

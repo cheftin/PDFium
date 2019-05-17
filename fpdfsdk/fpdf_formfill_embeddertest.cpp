@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "build/build_config.h"
 #include "core/fxcrt/fx_coordinates.h"
 #include "core/fxcrt/fx_string.h"
 #include "core/fxcrt/fx_system.h"
@@ -789,11 +790,11 @@ TEST_F(FPDFFormFillEmbedderTest, BUG_765384) {
 #endif  // PDF_ENABLE_V8
 
 TEST_F(FPDFFormFillEmbedderTest, FormText) {
-#if _FX_PLATFORM_ == _FX_PLATFORM_APPLE_
+#if defined(OS_MACOSX)
   const char md5_1[] = "5f11dbe575fe197a37c3fb422559f8ff";
   const char md5_2[] = "35b1a4b679eafc749a0b6fda750c0e8d";
   const char md5_3[] = "65c64a7c355388f719a752aa1e23f6fe";
-#elif _FX_PLATFORM_ == _FX_PLATFORM_WINDOWS_
+#elif defined(OS_WIN)
   const char md5_1[] = "d3204faa62b607f0bd3893c9c22cabcb";
   const char md5_2[] = "29d1c3fd226ca6a69597f75937690320";
   const char md5_3[] = "5e678a55912cb568fd677bf34abb8727";
@@ -837,6 +838,27 @@ TEST_F(FPDFFormFillEmbedderTest, FormText) {
   }
   // Check saved document
   VerifySavedDocument(300, 300, md5_3);
+}
+
+// Tests using FPDF_REVERSE_BYTE_ORDER with FPDF_FFLDraw(). The two rendered
+// bitmaps should be different.
+TEST_F(FPDFFormFillEmbedderTest, BUG_1281) {
+  const char kMd5Normal[] = "6c674642154408e877d88c6c082d67e9";
+  const char kMd5ReverseByteOrder[] = "24fff03d1e663b7ece5f6e69ad837124";
+
+  ASSERT_TRUE(OpenDocument("bug_890322.pdf"));
+  FPDF_PAGE page = LoadPage(0);
+  ASSERT_TRUE(page);
+
+  ScopedFPDFBitmap bitmap_normal = RenderLoadedPage(page);
+  CompareBitmap(bitmap_normal.get(), 200, 200, kMd5Normal);
+
+  ScopedFPDFBitmap bitmap_reverse_byte_order =
+      RenderLoadedPageWithFlags(page, FPDF_REVERSE_BYTE_ORDER);
+  CompareBitmap(bitmap_reverse_byte_order.get(), 200, 200,
+                kMd5ReverseByteOrder);
+
+  UnloadPage(page);
 }
 
 TEST_F(FPDFFormFillEmbedderTest, HasFormInfoNone) {
@@ -1377,8 +1399,7 @@ TEST_F(FPDFFormFillTextFormEmbedderTest, InsertTextInEmptyTextField) {
   CheckFocusedFieldText(L"");
 
   // Test inserting text into empty text field.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Hello");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Hello");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
   CheckFocusedFieldText(L"Hello");
 
@@ -1398,8 +1419,7 @@ TEST_F(FPDFFormFillTextFormEmbedderTest, InsertTextInPopulatedTextFieldLeft) {
   CheckFocusedFieldText(L"ABCDEFGH");
 
   // Test inserting text in front of existing text in text field.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Hello");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Hello");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
   CheckFocusedFieldText(L"HelloABCDEFGH");
 
@@ -1417,8 +1437,7 @@ TEST_F(FPDFFormFillTextFormEmbedderTest, InsertTextInPopulatedTextFieldMiddle) {
   ClickOnFormFieldAtPoint(RegularFormAtX(134.0));
 
   // Test inserting text in the middle of existing text in text field.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Hello");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Hello");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
   CheckFocusedFieldText(L"ABCDHelloEFGH");
 
@@ -1436,8 +1455,7 @@ TEST_F(FPDFFormFillTextFormEmbedderTest, InsertTextInPopulatedTextFieldRight) {
   ClickOnFormFieldAtPoint(RegularFormAtX(166.0));
 
   // Test inserting text behind existing text in text field.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Hello");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Hello");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
   CheckFocusedFieldText(L"ABCDEFGHHello");
 
@@ -1458,8 +1476,7 @@ TEST_F(FPDFFormFillTextFormEmbedderTest,
   CheckSelection(L"ABCDEFGHIJKL");
 
   // Test replacing text selection with text to be inserted.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Hello");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Hello");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
   CheckFocusedFieldText(L"Hello");
 
@@ -1480,8 +1497,7 @@ TEST_F(FPDFFormFillTextFormEmbedderTest,
   CheckSelection(L"ABCDEF");
 
   // Test replacing text selection with text to be inserted.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Hello");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Hello");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
   CheckFocusedFieldText(L"HelloGHIJKL");
 
@@ -1502,8 +1518,7 @@ TEST_F(FPDFFormFillTextFormEmbedderTest,
   CheckSelection(L"DEFGHI");
 
   // Test replacing text selection with text to be inserted.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Hello");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Hello");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
 
   // Select entire contents of text field to check that insertion worked
@@ -1523,8 +1538,7 @@ TEST_F(FPDFFormFillTextFormEmbedderTest,
   CheckSelection(L"GHIJKL");
 
   // Test replacing text selection with text to be inserted.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Hello");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Hello");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
 
   // Select entire contents of text field to check that insertion worked
@@ -1540,8 +1554,7 @@ TEST_F(FPDFFormFillComboBoxFormEmbedderTest,
   CheckFocusedFieldText(L"");
 
   // Test inserting text into empty user-editable combobox.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Hello");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Hello");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
   CheckFocusedFieldText(L"Hello");
 
@@ -1560,8 +1573,7 @@ TEST_F(FPDFFormFillComboBoxFormEmbedderTest,
   ClickOnFormFieldAtPoint(EditableFormBegin());
 
   // Test inserting text in front of existing text in user-editable combobox.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Hello");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Hello");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
 
   // Select entire contents of user-editable combobox text field to check that
@@ -1580,8 +1592,7 @@ TEST_F(FPDFFormFillComboBoxFormEmbedderTest,
 
   // Test inserting text in the middle of existing text in user-editable
   // combobox.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Hello");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Hello");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
 
   // Select entire contents of user-editable combobox text field to check that
@@ -1599,8 +1610,7 @@ TEST_F(FPDFFormFillComboBoxFormEmbedderTest,
   ClickOnFormFieldAtPoint(EditableFormEnd());
 
   // Test inserting text behind existing text in user-editable combobox.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Hello");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Hello");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
 
   // Select entire contents of user-editable combobox text field to check that
@@ -1620,8 +1630,7 @@ TEST_F(FPDFFormFillComboBoxFormEmbedderTest,
   CheckSelection(L"ABCDEFGHIJ");
 
   // Test replacing text selection with text to be inserted.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Hello");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Hello");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
 
   // Select entire contents of user-editable combobox text field to check that
@@ -1641,8 +1650,7 @@ TEST_F(FPDFFormFillComboBoxFormEmbedderTest,
   CheckSelection(L"ABCDE");
 
   // Test replacing text selection with text to be inserted.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Hello");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Hello");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
 
   // Select entire contents of user-editable combobox text field to check that
@@ -1662,8 +1670,7 @@ TEST_F(FPDFFormFillComboBoxFormEmbedderTest,
   CheckSelection(L"DEFGH");
 
   // Test replacing text selection with text to be inserted.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Hello");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Hello");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
 
   // Select entire contents of user-editable combobox text field to check that
@@ -1683,8 +1690,7 @@ TEST_F(FPDFFormFillComboBoxFormEmbedderTest,
   CheckSelection(L"FGHIJ");
 
   // Test replacing text selection with text to be inserted.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Hello");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Hello");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
 
   // Select entire contents of user-editable combobox text field to check that
@@ -1710,8 +1716,7 @@ TEST_F(FPDFFormFillTextFormEmbedderTest,
 
   // Test inserting text into now empty text field so text to be inserted
   // exceeds the char limit and is cut off.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Hippopotamus");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Hippopotamus");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
   CheckFocusedFieldText(L"Hippopotam");
 
@@ -1736,8 +1741,7 @@ TEST_F(FPDFFormFillTextFormEmbedderTest,
 
   // Test inserting text into now empty text field so text to be inserted
   // exceeds the char limit and is cut off.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Zebra");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Zebra");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
   CheckFocusedFieldText(L"Zebra");
 
@@ -1754,8 +1758,7 @@ TEST_F(FPDFFormFillTextFormEmbedderTest,
   ClickOnFormFieldAtPoint(CharLimitFormBegin());
 
   // Test inserting text in front of existing text in text field.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Hippopotamus");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Hippopotamus");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
 
   // Select entire contents of text field to check that insertion worked
@@ -1776,8 +1779,7 @@ TEST_F(FPDFFormFillTextFormEmbedderTest,
   CheckFocusedFieldText(L"Elephant");
 
   // Test inserting text in the middle of existing text in text field.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Hippopotamus");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Hippopotamus");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
   CheckFocusedFieldText(L"ElephHiant");
 
@@ -1796,8 +1798,7 @@ TEST_F(FPDFFormFillTextFormEmbedderTest,
   ClickOnFormFieldAtPoint(CharLimitFormAtX(166.0));
 
   // Test inserting text behind existing text in text field.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Hippopotamus");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Hippopotamus");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
 
   // Select entire contents of text field to check that insertion worked
@@ -1817,8 +1818,7 @@ TEST_F(FPDFFormFillTextFormEmbedderTest,
   CheckSelection(L"Elephant");
 
   // Test replacing text selection with text to be inserted.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Hippopotamus");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Hippopotamus");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
 
   // Select entire contents of text field to check that insertion worked
@@ -1838,8 +1838,7 @@ TEST_F(FPDFFormFillTextFormEmbedderTest,
   CheckSelection(L"Elep");
 
   // Test replacing text selection with text to be inserted.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Hippopotamus");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Hippopotamus");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
 
   // Select entire contents of text field to check that insertion worked
@@ -1859,8 +1858,7 @@ TEST_F(FPDFFormFillTextFormEmbedderTest,
   CheckSelection(L"epha");
 
   // Test replacing text selection with text to be inserted.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Hippopotamus");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Hippopotamus");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
 
   // Select entire contents of text field to check that insertion worked
@@ -1880,8 +1878,7 @@ TEST_F(FPDFFormFillTextFormEmbedderTest,
   CheckSelection(L"hant");
 
   // Test replacing text selection with text to be inserted.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Hippopotamus");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Hippopotamus");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
 
   // Select entire contents of text field to check that insertion worked
@@ -1897,8 +1894,7 @@ TEST_F(FPDFFormFillTextFormEmbedderTest, DoubleClickInTextField) {
   CheckFocusedFieldText(L"");
 
   // Test inserting text into empty text field.
-  std::unique_ptr<unsigned short, pdfium::FreeDeleter> text_to_insert =
-      GetFPDFWideString(L"Hello World");
+  ScopedFPDFWideString text_to_insert = GetFPDFWideString(L"Hello World");
   FORM_ReplaceSelection(form_handle(), page(), text_to_insert.get());
   CheckFocusedFieldText(L"Hello World");
 

@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "build/build_config.h"
 #include "constants/transparency.h"
 #include "core/fpdfapi/font/cpdf_font.h"
 #include "core/fpdfapi/font/cpdf_type3char.h"
@@ -80,9 +81,6 @@ int g_CurrentRecursionDepth = 0;
 
 void ReleaseCachedType3(CPDF_Type3Font* pFont) {
   CPDF_Document* pDoc = pFont->GetDocument();
-  if (!pDoc)
-    return;
-
   pDoc->GetRenderData()->MaybePurgeCachedType3(pFont);
   pDoc->GetPageData()->ReleaseFont(pFont->GetFontDict());
 }
@@ -929,6 +927,7 @@ RetainPtr<CFX_DIBitmap> DrawPatternBitmap(
     CPDF_Document* pDoc,
     CPDF_PageRenderCache* pCache,
     CPDF_TilingPattern* pPattern,
+    CPDF_Form* pPatternForm,
     const CFX_Matrix& mtObject2Device,
     int width,
     int height,
@@ -957,7 +956,7 @@ RetainPtr<CFX_DIBitmap> DrawPatternBitmap(
   options.GetOptions().bForceHalftone = true;
 
   CPDF_RenderContext context(pDoc, pCache);
-  context.AppendLayer(pPattern->form(), &mtPattern2Bitmap);
+  context.AppendLayer(pPatternForm, &mtPattern2Bitmap);
   context.Render(&bitmap_device, &options, nullptr);
 #if defined _SKIA_SUPPORT_PATHS_
   bitmap_device.Flush(true);
@@ -1007,7 +1006,7 @@ CPDF_RenderStatus::~CPDF_RenderStatus() {}
 void CPDF_RenderStatus::Initialize(const CPDF_RenderStatus* pParentState,
                                    const CPDF_GraphicStates* pInitialStates) {
   m_bPrint = m_pDevice->GetDeviceClass() != FXDC_DISPLAY;
-  m_pPageResource = m_pContext->GetPageResources();
+  m_pPageResource.Reset(m_pContext->GetPageResources());
   if (pInitialStates && !m_pType3Char) {
     m_InitialStates.CopyStates(*pInitialStates);
     if (pParentState) {
@@ -1037,7 +1036,7 @@ void CPDF_RenderStatus::RenderObjectList(
 #endif
   CFX_FloatRect clip_rect = mtObj2Device.GetInverse().TransformRect(
       CFX_FloatRect(m_pDevice->GetClipBox()));
-  for (const auto& pCurObj : *pObjectHolder->GetPageObjectList()) {
+  for (const auto& pCurObj : *pObjectHolder) {
     if (pCurObj.get() == m_pStopObj) {
       m_bStopped = true;
       return;
@@ -1782,9 +1781,6 @@ bool CPDF_RenderStatus::ProcessText(CPDF_TextObject* textobj,
 RetainPtr<CPDF_Type3Cache> CPDF_RenderStatus::GetCachedType3(
     CPDF_Type3Font* pFont) {
   CPDF_Document* pDoc = pFont->GetDocument();
-  if (!pDoc)
-    return nullptr;
-
   pDoc->GetPageData()->GetFont(pFont->GetFontDict());
   return pDoc->GetRenderData()->GetCachedType3(pFont);
 }
@@ -2143,7 +2139,8 @@ void CPDF_RenderStatus::DrawTilingPattern(CPDF_TilingPattern* pPattern,
                                           CPDF_PageObject* pPageObj,
                                           const CFX_Matrix& mtObj2Device,
                                           bool bStroke) {
-  if (!pPattern->Load())
+  const std::unique_ptr<CPDF_Form> pPatternForm = pPattern->Load(pPageObj);
+  if (!pPatternForm)
     return;
 
   CFX_RenderDevice::StateRestorer restorer(m_pDevice);
@@ -2201,7 +2198,7 @@ void CPDF_RenderStatus::DrawTilingPattern(CPDF_TilingPattern* pPattern,
     if (!pPattern->colored())
       pStates = CloneObjStates(pPageObj, bStroke);
 
-    const CPDF_Dictionary* pFormDict = pPattern->form()->GetDict();
+    const CPDF_Dictionary* pFormDict = pPatternForm->GetDict();
     const CPDF_Dictionary* pFormResource =
         pFormDict ? pFormDict->GetDictFor("Resources") : nullptr;
     for (int col = min_col; col <= max_col; col++) {
@@ -2214,11 +2211,11 @@ void CPDF_RenderStatus::DrawTilingPattern(CPDF_TilingPattern* pPattern,
         CFX_RenderDevice::StateRestorer restorer2(m_pDevice);
         CPDF_RenderStatus status(m_pContext.Get(), m_pDevice);
         status.SetOptions(m_Options);
-        status.SetTransparency(pPattern->form()->GetTransparency());
+        status.SetTransparency(pPatternForm->GetTransparency());
         status.SetFormResource(pFormResource);
         status.SetDropObjects(m_bDropObjects);
         status.Initialize(this, pStates.get());
-        status.RenderObjectList(pPattern->form(), matrix);
+        status.RenderObjectList(pPatternForm.get(), matrix);
       }
     }
     return;
@@ -2246,15 +2243,16 @@ void CPDF_RenderStatus::DrawTilingPattern(CPDF_TilingPattern* pPattern,
   float top_offset = cell_bbox.bottom - mtPattern2Device.f;
   RetainPtr<CFX_DIBitmap> pPatternBitmap;
   if (width * height < 16) {
-    RetainPtr<CFX_DIBitmap> pEnlargedBitmap =
-        DrawPatternBitmap(m_pContext->GetDocument(), m_pContext->GetPageCache(),
-                          pPattern, mtObj2Device, 8, 8, m_Options.GetOptions());
+    RetainPtr<CFX_DIBitmap> pEnlargedBitmap = DrawPatternBitmap(
+        m_pContext->GetDocument(), m_pContext->GetPageCache(), pPattern,
+        pPatternForm.get(), mtObj2Device, 8, 8, m_Options.GetOptions());
     pPatternBitmap = pEnlargedBitmap->StretchTo(
         width, height, FXDIB_ResampleOptions(), nullptr);
   } else {
-    pPatternBitmap = DrawPatternBitmap(
-        m_pContext->GetDocument(), m_pContext->GetPageCache(), pPattern,
-        mtObj2Device, width, height, m_Options.GetOptions());
+    pPatternBitmap =
+        DrawPatternBitmap(m_pContext->GetDocument(), m_pContext->GetPageCache(),
+                          pPattern, pPatternForm.get(), mtObj2Device, width,
+                          height, m_Options.GetOptions());
   }
   if (!pPatternBitmap)
     return;
@@ -2524,8 +2522,7 @@ RetainPtr<CFX_DIBitmap> CPDF_RenderStatus::LoadSMask(
   int width = pClipRect->right - pClipRect->left;
   int height = pClipRect->bottom - pClipRect->top;
   FXDIB_Format format;
-#if _FX_PLATFORM_ == _FX_PLATFORM_APPLE_ || defined _SKIA_SUPPORT_ || \
-    defined _SKIA_SUPPORT_PATHS_
+#if defined(OS_MACOSX) || defined _SKIA_SUPPORT_ || defined _SKIA_SUPPORT_PATHS_
   format = bLuminosity ? FXDIB_Rgb32 : FXDIB_8bppMask;
 #else
   format = bLuminosity ? FXDIB_Rgb : FXDIB_8bppMask;
@@ -2533,14 +2530,14 @@ RetainPtr<CFX_DIBitmap> CPDF_RenderStatus::LoadSMask(
   if (!bitmap_device.Create(width, height, format, nullptr))
     return nullptr;
 
-  CFX_DIBitmap& bitmap = *bitmap_device.GetBitmap();
+  RetainPtr<CFX_DIBitmap> bitmap = bitmap_device.GetBitmap();
   int nCSFamily = 0;
   if (bLuminosity) {
     FX_ARGB back_color =
         GetBackColor(pSMaskDict, pGroup->GetDict(), &nCSFamily);
-    bitmap.Clear(back_color);
+    bitmap->Clear(back_color);
   } else {
-    bitmap.Clear(0);
+    bitmap->Clear(0);
   }
 
   const CPDF_Dictionary* pFormResource = nullptr;
@@ -2565,8 +2562,8 @@ RetainPtr<CFX_DIBitmap> CPDF_RenderStatus::LoadSMask(
 
   uint8_t* dest_buf = pMask->GetBuffer();
   int dest_pitch = pMask->GetPitch();
-  uint8_t* src_buf = bitmap.GetBuffer();
-  int src_pitch = bitmap.GetPitch();
+  uint8_t* src_buf = bitmap->GetBuffer();
+  int src_pitch = bitmap->GetPitch();
   std::vector<uint8_t> transfers(256);
   if (pFunc) {
     std::vector<float> results(pFunc->CountOutputs());
@@ -2582,7 +2579,7 @@ RetainPtr<CFX_DIBitmap> CPDF_RenderStatus::LoadSMask(
     }
   }
   if (bLuminosity) {
-    int Bpp = bitmap.GetBPP() / 8;
+    int Bpp = bitmap->GetBPP() / 8;
     for (int row = 0; row < height; row++) {
       uint8_t* dest_pos = dest_buf + row * dest_pitch;
       uint8_t* src_pos = src_buf + row * src_pitch;

@@ -497,8 +497,7 @@ ByteString GUIDString(bool bSeparator) {
   return bsGUID;
 }
 
-bool IsIsoDateFormat(const char* pData,
-                     int32_t iLength,
+bool IsIsoDateFormat(pdfium::span<const char> pData,
                      int32_t* pStyle,
                      int32_t* pYear,
                      int32_t* pMonth,
@@ -512,7 +511,7 @@ bool IsIsoDateFormat(const char* pData,
   iMonth = 1;
   iDay = 1;
 
-  if (iLength < 4)
+  if (pData.size() < 4)
     return false;
 
   char szYear[5];
@@ -525,17 +524,16 @@ bool IsIsoDateFormat(const char* pData,
   }
   iYear = FXSYS_atoi(szYear);
   iStyle = 0;
-  if (iLength == 4)
+  if (pData.size() == 4)
     return true;
 
   iStyle = pData[4] == '-' ? 1 : 0;
 
-  char szBuffer[3];
-  szBuffer[2] = '\0';
-  int32_t iPosOff = iStyle == 0 ? 4 : 5;
+  size_t iPosOff = iStyle == 0 ? 4 : 5;
   if (!std::isdigit(pData[iPosOff]) || !std::isdigit(pData[iPosOff + 1]))
     return false;
 
+  char szBuffer[3] = {};
   szBuffer[0] = pData[iPosOff];
   szBuffer[1] = pData[iPosOff + 1];
   iMonth = FXSYS_atoi(szBuffer);
@@ -544,11 +542,11 @@ bool IsIsoDateFormat(const char* pData,
 
   if (iStyle == 0) {
     iPosOff += 2;
-    if (iLength == 6)
+    if (pData.size() == 6)
       return true;
   } else {
     iPosOff += 3;
-    if (iLength == 7)
+    if (pData.size() == 7)
       return true;
   }
   if (!std::isdigit(pData[iPosOff]) || !std::isdigit(pData[iPosOff + 1]))
@@ -557,7 +555,7 @@ bool IsIsoDateFormat(const char* pData,
   szBuffer[0] = pData[iPosOff];
   szBuffer[1] = pData[iPosOff + 1];
   iDay = FXSYS_atoi(szBuffer);
-  if (iPosOff + 2 < iLength)
+  if (iPosOff + 2 < pData.size())
     return false;
 
   if (iMonth == 2) {
@@ -570,8 +568,7 @@ bool IsIsoDateFormat(const char* pData,
   return iDay <= (iMonth % 2 == 0 ? 31 : 30);
 }
 
-bool IsIsoTimeFormat(const char* pData,
-                     int32_t iLength,
+bool IsIsoTimeFormat(pdfium::span<const char> pData,
                      int32_t* pHour,
                      int32_t* pMinute,
                      int32_t* pSecond,
@@ -591,25 +588,25 @@ bool IsIsoTimeFormat(const char* pData,
   iMilliSecond = 0;
   iZoneHour = 0;
   iZoneMinute = 0;
-  if (!pData)
+
+  if (pData.empty())
     return false;
 
-  char szBuffer[3];
-  szBuffer[2] = '\0';
-  int32_t iZone = 0;
-  int32_t i = 0;
-  while (i < iLength) {
+  size_t iZone = 0;
+  size_t i = 0;
+  while (i < pData.size()) {
     if (!std::isdigit(pData[i]) && pData[i] != ':') {
       iZone = i;
       break;
     }
     ++i;
   }
-  if (i == iLength)
-    iZone = iLength;
+  if (i == pData.size())
+    iZone = pData.size();
 
-  int32_t iPos = 0;
-  int32_t iIndex = 0;
+  char szBuffer[3] = {};
+  size_t iPos = 0;
+  size_t iIndex = 0;
   while (iIndex < iZone) {
     if (!std::isdigit(pData[iIndex]))
       return false;
@@ -648,9 +645,9 @@ bool IsIsoTimeFormat(const char* pData,
     }
   }
 
-  if (iIndex < iLength && pData[iIndex] == '.') {
+  if (iIndex < pData.size() && pData[iIndex] == '.') {
     constexpr int kSubSecondLength = 3;
-    if (iIndex + kSubSecondLength >= iLength)
+    if (iIndex + kSubSecondLength >= pData.size())
       return false;
 
     ++iIndex;
@@ -671,11 +668,11 @@ bool IsIsoTimeFormat(const char* pData,
     iIndex += kSubSecondLength;
   }
 
-  if (iIndex < iLength && FXSYS_towlower(pData[iIndex]) == 'z')
+  if (iIndex < pData.size() && FXSYS_towlower(pData[iIndex]) == 'z')
     return true;
 
   int32_t iSign = 1;
-  if (iIndex < iLength) {
+  if (iIndex < pData.size()) {
     if (pData[iIndex] == '+') {
       ++iIndex;
     } else if (pData[iIndex] == '-') {
@@ -684,7 +681,7 @@ bool IsIsoTimeFormat(const char* pData,
     }
   }
   iPos = 0;
-  while (iIndex < iLength) {
+  while (iIndex < pData.size()) {
     if (!std::isdigit(pData[iIndex]))
       return false;
 
@@ -714,15 +711,14 @@ bool IsIsoTimeFormat(const char* pData,
       iIndex += 2;
     }
   }
-  if (iIndex < iLength)
+  if (iIndex < pData.size())
     return false;
 
   iZoneHour *= iSign;
   return true;
 }
 
-bool IsIsoDateTimeFormat(const char* pData,
-                         int32_t iLength,
+bool IsIsoDateTimeFormat(pdfium::span<const char> pData,
                          int32_t* pYear,
                          int32_t* pMonth,
                          int32_t* pDay,
@@ -748,12 +744,13 @@ bool IsIsoDateTimeFormat(const char* pData,
   iHour = 0;
   iMinute = 0;
   iSecond = 0;
-  if (!pData)
+
+  if (pData.empty())
     return false;
 
-  int32_t iIndex = 0;
+  size_t iIndex = 0;
   while (pData[iIndex] != 'T' && pData[iIndex] != 't') {
-    if (iIndex >= iLength)
+    if (iIndex >= pData.size())
       return false;
     ++iIndex;
   }
@@ -761,14 +758,15 @@ bool IsIsoDateTimeFormat(const char* pData,
     return false;
 
   int32_t iStyle = -1;
-  if (!IsIsoDateFormat(pData, iIndex, &iStyle, &iYear, &iMonth, &iDay))
+  if (!IsIsoDateFormat(pData.subspan(0, iIndex), &iStyle, &iYear, &iMonth,
+                       &iDay)) {
     return false;
+  }
   if (pData[iIndex] != 'T' && pData[iIndex] != 't')
     return true;
 
-  ++iIndex;
-  return IsIsoTimeFormat(pData + iIndex, iLength - iIndex, &iHour, &iMinute,
-                         &iSecond, &iMilliSecond, &iZoneHour, &iZoneMinute);
+  return IsIsoTimeFormat(pData.subspan(iIndex + 1), &iHour, &iMinute, &iSecond,
+                         &iMilliSecond, &iZoneHour, &iZoneMinute);
 }
 
 int32_t DateString2Num(ByteStringView bsDate) {
@@ -778,10 +776,8 @@ int32_t DateString2Num(ByteStringView bsDate) {
   int32_t iDay = 0;
   if (iLength <= 10) {
     int32_t iStyle = -1;
-    if (!IsIsoDateFormat(bsDate.unterminated_c_str(), iLength, &iStyle, &iYear,
-                         &iMonth, &iDay)) {
+    if (!IsIsoDateFormat(bsDate.span(), &iStyle, &iYear, &iMonth, &iDay))
       return 0;
-    }
   } else {
     int32_t iHour = 0;
     int32_t iMinute = 0;
@@ -789,9 +785,9 @@ int32_t DateString2Num(ByteStringView bsDate) {
     int32_t iMilliSecond = 0;
     int32_t iZoneHour = 0;
     int32_t iZoneMinute = 0;
-    if (!IsIsoDateTimeFormat(bsDate.unterminated_c_str(), iLength, &iYear,
-                             &iMonth, &iDay, &iHour, &iMinute, &iSecond,
-                             &iMilliSecond, &iZoneHour, &iZoneMinute)) {
+    if (!IsIsoDateTimeFormat(bsDate.span(), &iYear, &iMonth, &iDay, &iHour,
+                             &iMinute, &iSecond, &iMilliSecond, &iZoneHour,
+                             &iZoneMinute)) {
       return 0;
     }
   }
@@ -821,7 +817,7 @@ int32_t DateString2Num(ByteStringView bsDate) {
   }
   i = 0;
   while (iDay - i > 0) {
-    dDays += 1;
+    ++dDays;
     ++i;
   }
   return (int32_t)dDays;
@@ -1253,7 +1249,7 @@ ByteString TrillionUS(ByteStringView bsData) {
     iIndex += 2;
   } else if (iFirstCount == 1) {
     strBuf << pCapUnits[pData[iIndex] - '0'];
-    iIndex += 1;
+    ++iIndex;
   }
   if (iLength > 3 && iFirstCount > 0) {
     strBuf << pComm[iComm];
@@ -4250,7 +4246,7 @@ void CFXJSE_FormCalcContext::Stuff(CFXJSE_Value* pThis,
     bsInsert = ValueToUTF8String(insertValue.get());
   }
 
-  iStart -= 1;
+  --iStart;
   std::ostringstream szResult;
   int32_t i = 0;
   while (i < iStart) {
@@ -4276,31 +4272,34 @@ void CFXJSE_FormCalcContext::Substr(CFXJSE_Value* pThis,
     return;
   }
 
-  std::unique_ptr<CFXJSE_Value> stringValue = GetSimpleValue(pThis, args, 0);
-  std::unique_ptr<CFXJSE_Value> startValue = GetSimpleValue(pThis, args, 1);
-  std::unique_ptr<CFXJSE_Value> endValue = GetSimpleValue(pThis, args, 2);
-  if (ValueIsNull(pThis, stringValue.get()) ||
-      (ValueIsNull(pThis, startValue.get())) ||
-      (ValueIsNull(pThis, endValue.get()))) {
+  std::unique_ptr<CFXJSE_Value> string_value = GetSimpleValue(pThis, args, 0);
+  std::unique_ptr<CFXJSE_Value> start_value = GetSimpleValue(pThis, args, 1);
+  std::unique_ptr<CFXJSE_Value> end_value = GetSimpleValue(pThis, args, 2);
+  if (ValueIsNull(pThis, string_value.get()) ||
+      ValueIsNull(pThis, start_value.get()) ||
+      ValueIsNull(pThis, end_value.get())) {
     args.GetReturnValue()->SetNull();
     return;
   }
 
-  int32_t iStart = 0;
-  int32_t iCount = 0;
-  ByteString bsSource = ValueToUTF8String(stringValue.get());
-  int32_t iLength = bsSource.GetLength();
+  ByteString bsSource = ValueToUTF8String(string_value.get());
+  size_t iLength = bsSource.GetLength();
   if (iLength == 0) {
     args.GetReturnValue()->SetString("");
     return;
   }
 
-  iStart = pdfium::clamp(
-      iLength, 1, static_cast<int32_t>(ValueToFloat(pThis, startValue.get())));
-  iCount =
-      std::max(0, static_cast<int32_t>(ValueToFloat(pThis, endValue.get())));
+  // |start_value| is 1-based. Assume first character if |start_value| is less
+  // than 1, per spec. Subtract 1 since |iStart| is 0-based.
+  size_t iStart = std::max(ValueToInteger(pThis, start_value.get()), 1) - 1;
+  if (iStart >= iLength) {
+    args.GetReturnValue()->SetString("");
+    return;
+  }
 
-  iStart -= 1;
+  // Negative values are treated as 0. Can't clamp() due to sign mismatches.
+  size_t iCount = std::max(ValueToInteger(pThis, end_value.get()), 0);
+  iCount = std::min(iCount, iLength - iStart);
   args.GetReturnValue()->SetString(bsSource.Mid(iStart, iCount).AsStringView());
 }
 
@@ -5172,7 +5171,7 @@ void CFXJSE_FormCalcContext::concat_fm_object(CFXJSE_Value* pThis,
       int32_t length = lengthValue->ToInteger();
       iLength = iLength + ((length > 2) ? (length - 2) : 0);
     }
-    iLength += 1;
+    ++iLength;
   }
 
   std::vector<std::unique_ptr<CFXJSE_Value>> returnValues;
@@ -5328,7 +5327,7 @@ std::vector<std::unique_ptr<CFXJSE_Value>> CFXJSE_FormCalcContext::unfoldArgs(
       int32_t iLength = lengthValue->ToInteger();
       iCount += ((iLength > 2) ? (iLength - 2) : 0);
     } else {
-      iCount += 1;
+      ++iCount;
     }
   }
 
@@ -5442,8 +5441,8 @@ bool CFXJSE_FormCalcContext::GetObjectForName(CFXJSE_Value* pThis,
       WideString::FromUTF8(bsAccessorName).AsStringView(), &resolveNodeRS,
       dwFlags, nullptr);
   if (bRet && resolveNodeRS.dwFlags == XFA_ResolveNode_RSType_Nodes) {
-    accessorValue->Assign(
-        pScriptContext->GetJSValueFromMap(resolveNodeRS.objects.front().Get()));
+    accessorValue->Assign(pScriptContext->GetOrCreateJSBindingFromMap(
+        resolveNodeRS.objects.front().Get()));
     return true;
   }
   return false;
@@ -5521,7 +5520,7 @@ void CFXJSE_FormCalcContext::ParseResolveResult(
     for (auto& pObject : resolveNodeRS.objects) {
       resultValues->push_back(pdfium::MakeUnique<CFXJSE_Value>(pIsolate));
       resultValues->back()->Assign(
-          pScriptContext->GetJSValueFromMap(pObject.Get()));
+          pScriptContext->GetOrCreateJSBindingFromMap(pObject.Get()));
     }
     return;
   }
@@ -5717,7 +5716,7 @@ CFXJSE_FormCalcContext::CFXJSE_FormCalcContext(v8::Isolate* pScriptIsolate,
     : m_pIsolate(pScriptIsolate),
       m_pValue(pdfium::MakeUnique<CFXJSE_Value>(pScriptIsolate)),
       m_pDocument(pDoc) {
-  m_pValue->SetObject(
+  m_pValue->SetHostObject(
       this,
       CFXJSE_Class::Create(pScriptContext, &kFormCalcFM2JSDescriptor, false));
 }

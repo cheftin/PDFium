@@ -6,7 +6,9 @@
 #include <limits>
 #include <memory>
 #include <string>
+#include <vector>
 
+#include "build/build_config.h"
 #include "core/fpdfapi/parser/cpdf_document.h"
 #include "fpdfsdk/cpdfsdk_helpers.h"
 #include "fpdfsdk/fpdf_view_c_api_test.h"
@@ -904,3 +906,21 @@ TEST_F(FPDFViewEmbedderTest, LoadDocumentWithEmptyXRefConsistently) {
     EXPECT_TRUE(FPDF_DocumentHasValidCrossReferenceTable(doc.get()));
   }
 }
+
+#if defined(OS_WIN)
+TEST_F(FPDFViewEmbedderTest, FPDF_RenderPage) {
+  ASSERT_TRUE(OpenDocument("rectangles.pdf"));
+  FPDF_PAGE page = LoadPage(0);
+  ASSERT_TRUE(page);
+
+  std::vector<uint8_t> emf_normal = RenderPageWithFlagsToEmf(page, 0);
+  EXPECT_EQ(3772u, emf_normal.size());
+
+  // FPDF_REVERSE_BYTE_ORDER is ignored since EMFs are always BGR.
+  std::vector<uint8_t> emf_reverse_byte_order =
+      RenderPageWithFlagsToEmf(page, FPDF_REVERSE_BYTE_ORDER);
+  EXPECT_EQ(emf_normal, emf_reverse_byte_order);
+
+  UnloadPage(page);
+}
+#endif

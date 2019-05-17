@@ -15,6 +15,8 @@
 #include "core/fxcrt/fx_system.h"
 #include "core/fxcrt/unowned_ptr.h"
 
+// Values used in PDFs except for |kInvalidShading| and |kMaxShading|.
+// Do not change.
 enum ShadingType {
   kInvalidShading = 0,
   kFunctionBasedShading = 1,
@@ -53,8 +55,8 @@ class CPDF_ShadingPattern final : public CPDF_Pattern {
   bool Load();
 
   ShadingType GetShadingType() const { return m_ShadingType; }
-  bool IsShadingObject() const { return m_bShadingObj; }
-  const CPDF_Object* GetShadingObject() const { return m_pShadingObj.Get(); }
+  bool IsShadingObject() const { return m_bShading; }
+  const CPDF_Object* GetShadingObject() const;
   const CPDF_ColorSpace* GetCS() const { return m_pCS.Get(); }
   const std::vector<std::unique_ptr<CPDF_Function>>& GetFuncs() const {
     return m_pFunctions;
@@ -68,8 +70,7 @@ class CPDF_ShadingPattern final : public CPDF_Pattern {
                          uint32_t nExpectedNumOutputs) const;
 
   ShadingType m_ShadingType = kInvalidShading;
-  const bool m_bShadingObj;
-  UnownedPtr<const CPDF_Object> m_pShadingObj;
+  const bool m_bShading;
 
   // Still keep |m_pCS| as some CPDF_ColorSpace (name object) are not managed
   // as counted objects. Refer to CPDF_DocPageData::GetColorSpace.

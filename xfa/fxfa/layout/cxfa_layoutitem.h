@@ -7,55 +7,40 @@
 #ifndef XFA_FXFA_LAYOUT_CXFA_LAYOUTITEM_H_
 #define XFA_FXFA_LAYOUT_CXFA_LAYOUTITEM_H_
 
+#include "core/fxcrt/tree_node.h"
 #include "core/fxcrt/unowned_ptr.h"
 #include "xfa/fxfa/parser/cxfa_document.h"
 
-class CXFA_ContainerLayoutItem;
 class CXFA_ContentLayoutItem;
 class CXFA_LayoutProcessor;
+class CXFA_ViewLayoutItem;
 
-class CXFA_LayoutItem {
+class CXFA_LayoutItem : public TreeNode<CXFA_LayoutItem> {
  public:
-  virtual ~CXFA_LayoutItem();
+  ~CXFA_LayoutItem() override;
 
-  bool IsContainerLayoutItem() const { return m_ItemType == kContainerItem; }
+  bool IsViewLayoutItem() const { return m_ItemType == kViewItem; }
   bool IsContentLayoutItem() const { return m_ItemType == kContentItem; }
-  CXFA_ContainerLayoutItem* AsContainerLayoutItem();
-  const CXFA_ContainerLayoutItem* AsContainerLayoutItem() const;
+  CXFA_ViewLayoutItem* AsViewLayoutItem();
+  const CXFA_ViewLayoutItem* AsViewLayoutItem() const;
   CXFA_ContentLayoutItem* AsContentLayoutItem();
   const CXFA_ContentLayoutItem* AsContentLayoutItem() const;
 
-  CXFA_ContainerLayoutItem* GetPage() const;
-  CXFA_LayoutItem* GetParent() const { return m_pParent; }
-  CXFA_LayoutItem* GetFirstChild() const { return m_pFirstChild; }
-  CXFA_LayoutItem* GetNextSibling() const { return m_pNextSibling; }
+  const CXFA_ViewLayoutItem* GetPage() const;
   CXFA_Node* GetFormNode() const { return m_pFormNode.Get(); }
   void SetFormNode(CXFA_Node* pNode) { m_pFormNode = pNode; }
 
-  // TODO(tsepez) replace these calls with AddChild() etc.
-  void SetParent(CXFA_LayoutItem* pParent) { m_pParent = pParent; }
-  void SetFirstChild(CXFA_LayoutItem* pChild) { m_pFirstChild = pChild; }
-  void SetNextSibling(CXFA_LayoutItem* pSibling) { m_pNextSibling = pSibling; }
-
-  void AddChild(CXFA_LayoutItem* pChildItem);
-  void AddHeadChild(CXFA_LayoutItem* pChildItem);
-  void RemoveChild(CXFA_LayoutItem* pChildItem);
-  void InsertChild(CXFA_LayoutItem* pBeforeItem, CXFA_LayoutItem* pChildItem);
-
  protected:
-  enum ItemType { kContainerItem, kContentItem };
+  enum ItemType { kViewItem, kContentItem };
   CXFA_LayoutItem(CXFA_Node* pNode, ItemType type);
 
  private:
   const ItemType m_ItemType;
-  CXFA_LayoutItem* m_pParent = nullptr;       // Raw, intra-tree pointer.
-  CXFA_LayoutItem* m_pFirstChild = nullptr;   // Raw, intra-tree pointer.
-  CXFA_LayoutItem* m_pNextSibling = nullptr;  // Raw, intra-tree pointer.
   UnownedPtr<CXFA_Node> m_pFormNode;
 };
 
-inline CXFA_ContainerLayoutItem* ToContainerLayoutItem(CXFA_LayoutItem* item) {
-  return item ? item->AsContainerLayoutItem() : nullptr;
+inline CXFA_ViewLayoutItem* ToViewLayoutItem(CXFA_LayoutItem* item) {
+  return item ? item->AsViewLayoutItem() : nullptr;
 }
 
 inline CXFA_ContentLayoutItem* ToContentLayoutItem(CXFA_LayoutItem* item) {

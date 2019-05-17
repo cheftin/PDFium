@@ -7,6 +7,7 @@
 #include "xfa/fgas/crt/cfgas_stringformatter.h"
 
 #include <algorithm>
+#include <limits>
 #include <utility>
 #include <vector>
 
@@ -1215,11 +1216,14 @@ bool CFGAS_StringFormatter::ParseNum(const WideString& wsSrcNum,
         ccf--;
         break;
       case 'E': {
+        iExponent = 0;
         bool bExpSign = false;
         while (cc < spSrcNum.size()) {
           if (spSrcNum[cc] == 'E' || spSrcNum[cc] == 'e')
             break;
           if (FXSYS_IsDecimalDigit(spSrcNum[cc])) {
+            if (iExponent > std::numeric_limits<int>::max() / 10)
+              return false;
             iExponent = iExponent + FXSYS_DecimalCharToInt(spSrcNum[cc]) * 10;
             cc--;
             continue;
@@ -1404,6 +1408,7 @@ bool CFGAS_StringFormatter::ParseNum(const WideString& wsSrcNum,
               (spSrcNum[cc] != 'E' && spSrcNum[cc] != 'e')) {
             return false;
           }
+          iExponent = 0;
           bool bExpSign = false;
           cc++;
           if (cc < spSrcNum.size()) {
@@ -1417,7 +1422,10 @@ bool CFGAS_StringFormatter::ParseNum(const WideString& wsSrcNum,
           while (cc < spSrcNum.size()) {
             if (!FXSYS_IsDecimalDigit(spSrcNum[cc]))
               break;
-            iExponent = iExponent * 10 + FXSYS_DecimalCharToInt(spSrcNum[cc]);
+            int digit = FXSYS_DecimalCharToInt(spSrcNum[cc]);
+            if (iExponent > (std::numeric_limits<int>::max() - digit) / 10)
+              return false;
+            iExponent = iExponent * 10 + digit;
             cc++;
           }
           iExponent = bExpSign ? -iExponent : iExponent;
@@ -2160,10 +2168,9 @@ bool CFGAS_StringFormatter::FormatNum(const WideString& wsInputNum,
         break;
     }
   }
-  if (!bAddNeg && bNeg) {
-    *wsOutput = pLocale->GetMinusSymbol() + (*wsOutput)[0] +
-                wsOutput->Right(wsOutput->GetLength() - 1);
-  }
+  if (!bAddNeg && bNeg)
+    *wsOutput = pLocale->GetMinusSymbol() + *wsOutput;
+
   return true;
 }
 
@@ -2182,9 +2189,10 @@ bool CFGAS_StringFormatter::FormatDateTime(const WideString& wsSrcDateTime,
     return false;
 
   if (eCategory == FX_DATETIMETYPE_Unknown) {
-    if (eDateTimeType == FX_DATETIMETYPE_Time)
+    if (eDateTimeType == FX_DATETIMETYPE_Time) {
       wsTimePattern = std::move(wsDatePattern);
-
+      wsDatePattern = WideString();
+    }
     eCategory = eDateTimeType;
     if (eCategory == FX_DATETIMETYPE_Unknown)
       return false;

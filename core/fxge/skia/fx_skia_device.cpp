@@ -8,6 +8,7 @@
 #include <utility>
 #include <vector>
 
+#include "build/build_config.h"
 #include "core/fpdfapi/page/cpdf_expintfunc.h"
 #include "core/fpdfapi/page/cpdf_function.h"
 #include "core/fpdfapi/page/cpdf_meshstream.h"
@@ -40,6 +41,7 @@
 #include "third_party/skia/include/core/SkRSXform.h"
 #include "third_party/skia/include/core/SkShader.h"
 #include "third_party/skia/include/core/SkStream.h"
+#include "third_party/skia/include/core/SkTextBlob.h"
 #include "third_party/skia/include/core/SkTypeface.h"
 #include "third_party/skia/include/effects/SkDashPathEffect.h"
 #include "third_party/skia/include/effects/SkGradientShader.h"
@@ -568,10 +570,9 @@ void SetBitmapPaint(bool isAlphaMask,
                     BlendMode blend_type,
                     SkPaint* paint) {
   paint->setAntiAlias(true);
-  if (isAlphaMask) {
-    paint->setColorFilter(
-        SkColorFilter::MakeModeFilter(argb, SkBlendMode::kSrc));
-  }
+  if (isAlphaMask)
+    paint->setColorFilter(SkColorFilters::Blend(argb, SkBlendMode::kSrc));
+
   // paint->setFilterQuality(kHigh_SkFilterQuality);
   paint->setBlendMode(GetSkiaBlendMode(blend_type));
   paint->setAlpha(bitmap_alpha);
@@ -865,7 +866,7 @@ class SkiaState {
       m_positions[index + count] = {cp.m_Origin.x * flip,
                                     cp.m_Origin.y * vFlip};
       m_glyphs[index + count] = static_cast<uint16_t>(cp.m_GlyphIndex);
-#if _FX_PLATFORM_ == _FX_PLATFORM_APPLE_
+#if defined(OS_MACOSX)
       if (cp.m_ExtGID)
         m_glyphs[index + count] = static_cast<uint16_t>(cp.m_ExtGID);
 #endif
@@ -900,15 +901,17 @@ class SkiaState {
     SkPaint skPaint;
     skPaint.setAntiAlias(true);
     skPaint.setColor(m_fillColor);
+
+    SkFont font;
     if (m_pTypeFace) {  // exclude placeholder test fonts
       sk_sp<SkTypeface> typeface(SkSafeRef(m_pTypeFace.Get()));
-      skPaint.setTypeface(typeface);
+      font.setTypeface(typeface);
     }
-    skPaint.setTextEncoding(kGlyphID_SkTextEncoding);
-    skPaint.setHinting(kNo_SkFontHinting);
-    skPaint.setTextScaleX(m_scaleX);
-    skPaint.setTextSize(SkTAbs(m_fontSize));
-    skPaint.setSubpixelText(true);
+    font.setHinting(SkFontHinting::kNone);
+    font.setScaleX(m_scaleX);
+    font.setSize(SkTAbs(m_fontSize));
+    font.setSubpixel(true);
+
     SkCanvas* skCanvas = m_pDriver->SkiaCanvas();
     skCanvas->save();
     SkScalar flip = m_fontSize < 0 ? -1 : 1;
@@ -925,13 +928,19 @@ class SkiaState {
       printf("%lc", m_glyphs[i]);
     printf("\n");
 #endif
+
+    sk_sp<SkTextBlob> blob;
     if (m_rsxform.count()) {
-      skCanvas->drawTextRSXform(m_glyphs.begin(), m_glyphs.bytes(),
-                                m_rsxform.begin(), nullptr, skPaint);
+      blob = SkTextBlob::MakeFromRSXform(m_glyphs.begin(), m_glyphs.bytes(),
+                                         m_rsxform.begin(), font,
+                                         SkTextEncoding::kGlyphID);
     } else {
-      skCanvas->drawPosText(m_glyphs.begin(), m_glyphs.bytes(),
-                            m_positions.begin(), skPaint);
+      blob = SkTextBlob::MakeFromPosText(m_glyphs.begin(), m_glyphs.bytes(),
+                                         m_positions.begin(), font,
+                                         SkTextEncoding::kGlyphID);
     }
+    skCanvas->drawTextBlob(blob, 0, 0, skPaint);
+
     skCanvas->restore();
     m_drawIndex = INT_MAX;
     m_type = Accumulator::kNone;
@@ -1553,11 +1562,13 @@ bool CFX_SkiaDeviceDriver::DrawDeviceText(int nChars,
   SkPaint paint;
   paint.setAntiAlias(true);
   paint.setColor(color);
-  paint.setTypeface(typeface);
-  paint.setTextEncoding(kGlyphID_SkTextEncoding);
-  paint.setHinting(kNo_SkFontHinting);
-  paint.setTextSize(SkTAbs(font_size));
-  paint.setSubpixelText(true);
+
+  SkFont font;
+  font.setTypeface(typeface);
+  font.setHinting(SkFontHinting::kNone);
+  font.setSize(SkTAbs(font_size));
+  font.setSubpixel(true);
+
   m_pCanvas->save();
   SkScalar flip = font_size < 0 ? -1 : 1;
   SkScalar vFlip = flip;
@@ -1582,7 +1593,7 @@ bool CFX_SkiaDeviceDriver::DrawDeviceText(int nChars,
       }
     }
     glyphs[index] = static_cast<uint16_t>(cp.m_GlyphIndex);
-#if _FX_PLATFORM_ == _FX_PLATFORM_APPLE_
+#if defined(OS_MACOSX)
     if (cp.m_ExtGID)
       glyphs[index] = static_cast<uint16_t>(cp.m_ExtGID);
 #endif
@@ -1618,18 +1629,22 @@ bool CFX_SkiaDeviceDriver::DrawDeviceText(int nChars,
         rsxform->fTy = positions[index].fY;
       }
     }
-    m_pCanvas->drawTextRSXform(glyphs.begin(), nChars * 2, xforms.begin(),
-                               nullptr, paint);
+    m_pCanvas->drawTextBlob(
+        SkTextBlob::MakeFromRSXform(glyphs.begin(), nChars * 2, xforms.begin(),
+                                    font, SkTextEncoding::kGlyphID),
+        0, 0, paint);
   } else if (oneAtATime) {
     for (int index = 0; index < nChars; ++index) {
       const TextCharPos& cp = pCharPos[index];
       if (cp.m_bGlyphAdjust) {
         if (0 == cp.m_AdjustMatrix[1] && 0 == cp.m_AdjustMatrix[2] &&
             1 == cp.m_AdjustMatrix[3]) {
-          paint.setTextScaleX(cp.m_AdjustMatrix[0]);
-          m_pCanvas->drawText(&glyphs[index], 1, positions[index].fX,
-                              positions[index].fY, paint);
-          paint.setTextScaleX(1);
+          font.setScaleX(cp.m_AdjustMatrix[0]);
+          auto blob = SkTextBlob::MakeFromText(&glyphs[index], 1, font,
+                                               SkTextEncoding::kGlyphID);
+          m_pCanvas->drawTextBlob(blob, positions[index].fX,
+                                  positions[index].fY, paint);
+          font.setScaleX(1);
         } else {
           m_pCanvas->save();
           SkMatrix adjust;
@@ -1640,17 +1655,23 @@ bool CFX_SkiaDeviceDriver::DrawDeviceText(int nChars,
           adjust.setScaleY(cp.m_AdjustMatrix[3]);
           adjust.preTranslate(positions[index].fX, positions[index].fY);
           m_pCanvas->concat(adjust);
-          m_pCanvas->drawText(&glyphs[index], 1, 0, 0, paint);
+          auto blob = SkTextBlob::MakeFromText(&glyphs[index], 1, font,
+                                               SkTextEncoding::kGlyphID);
+          m_pCanvas->drawTextBlob(blob, 0, 0, paint);
           m_pCanvas->restore();
         }
       } else {
-        m_pCanvas->drawText(&glyphs[index], 1, positions[index].fX,
-                            positions[index].fY, paint);
+        auto blob = SkTextBlob::MakeFromText(&glyphs[index], 1, font,
+                                             SkTextEncoding::kGlyphID);
+        m_pCanvas->drawTextBlob(blob, positions[index].fX, positions[index].fY,
+                                paint);
       }
     }
   } else {
-    m_pCanvas->drawPosText(glyphs.begin(), nChars * 2, positions.begin(),
-                           paint);
+    m_pCanvas->drawTextBlob(SkTextBlob::MakeFromPosText(
+                                glyphs.begin(), nChars * 2, positions.begin(),
+                                font, SkTextEncoding::kGlyphID),
+                            0, 0, paint);
   }
   m_pCanvas->restore();
 
@@ -2031,9 +2052,9 @@ bool CFX_SkiaDeviceDriver::DrawShading(const CPDF_ShadingPattern* pPattern,
     float end_y = pCoords->GetNumberAt(3);
     SkPoint pts[] = {{start_x, start_y}, {end_x, end_y}};
     skMatrix.mapPoints(pts, SK_ARRAY_COUNT(pts));
-    paint.setShader(SkGradientShader::MakeLinear(
-        pts, skColors.begin(), skPos.begin(), skColors.count(),
-        SkShader::kClamp_TileMode));
+    paint.setShader(
+        SkGradientShader::MakeLinear(pts, skColors.begin(), skPos.begin(),
+                                     skColors.count(), SkTileMode::kClamp));
     if (clipStart || clipEnd) {
       // if the gradient is horizontal or vertical, modify the draw rectangle
       if (pts[0].fX == pts[1].fX) {  // vertical
@@ -2075,7 +2096,7 @@ bool CFX_SkiaDeviceDriver::DrawShading(const CPDF_ShadingPattern* pPattern,
 
     paint.setShader(SkGradientShader::MakeTwoPointConical(
         pts[0], start_r, pts[1], end_r, skColors.begin(), skPos.begin(),
-        skColors.count(), SkShader::kClamp_TileMode));
+        skColors.count(), SkTileMode::kClamp));
     if (clipStart || clipEnd) {
       if (clipStart && start_r)
         skClip.addCircle(pts[0].fX, pts[0].fY, start_r);
@@ -2483,12 +2504,12 @@ bool CFX_SkiaDeviceDriver::DrawBitsWithMask(
                  &paint);
   sk_sp<SkImage> skSrc = SkImage::MakeFromBitmap(skBitmap);
   sk_sp<SkShader> skSrcShader =
-      skSrc->makeShader(SkShader::kClamp_TileMode, SkShader::kClamp_TileMode);
+      skSrc->makeShader(SkTileMode::kClamp, SkTileMode::kClamp);
   sk_sp<SkImage> skMaskImage = SkImage::MakeFromBitmap(skMask);
-  sk_sp<SkShader> skMaskShader = skMaskImage->makeShader(
-      SkShader::kClamp_TileMode, SkShader::kClamp_TileMode);
-  paint.setShader(SkShader::MakeComposeShader(skMaskShader, skSrcShader,
-                                              SkBlendMode::kSrcIn));
+  sk_sp<SkShader> skMaskShader =
+      skMaskImage->makeShader(SkTileMode::kClamp, SkTileMode::kClamp);
+  paint.setShader(
+      SkShaders::Blend(SkBlendMode::kSrcIn, skMaskShader, skSrcShader));
   SkRect r = {0, 0, SkIntToScalar(srcWidth), SkIntToScalar(srcHeight)};
   m_pCanvas->drawRect(r, paint);
   m_pCanvas->restore();

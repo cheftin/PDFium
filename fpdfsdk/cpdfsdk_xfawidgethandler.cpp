@@ -69,10 +69,10 @@ void CPDFSDK_XFAWidgetHandler::OnDraw(CPDFSDK_PageView* pPageView,
 
 void CPDFSDK_XFAWidgetHandler::OnLoad(CPDFSDK_Annot* pAnnot) {}
 
-void CPDFSDK_XFAWidgetHandler::ReleaseAnnot(CPDFSDK_Annot* pAnnot) {
-  CPDFSDK_XFAWidget* pWidget = ToXFAWidget(pAnnot);
+void CPDFSDK_XFAWidgetHandler::ReleaseAnnot(
+    std::unique_ptr<CPDFSDK_Annot> pAnnot) {
+  CPDFSDK_XFAWidget* pWidget = ToXFAWidget(pAnnot.get());
   pWidget->GetInteractiveForm()->RemoveXFAMap(pWidget->GetXFAWidget());
-  delete pWidget;
 }
 
 CFX_FloatRect CPDFSDK_XFAWidgetHandler::GetViewBBox(CPDFSDK_PageView* pPageView,
@@ -80,21 +80,13 @@ CFX_FloatRect CPDFSDK_XFAWidgetHandler::GetViewBBox(CPDFSDK_PageView* pPageView,
   CXFA_Node* node = pAnnot->GetXFAWidget()->GetNode();
   ASSERT(node->IsWidgetReady());
 
-  CFX_RectF rcBBox;
-  if (node->GetFFWidgetType() == XFA_FFWidgetType::kSignature) {
-    rcBBox = pAnnot->GetXFAWidget()->GetBBox(XFA_WidgetStatus_Visible,
-                                             CXFA_FFWidget::kDrawFocus);
-  } else {
-    rcBBox = pAnnot->GetXFAWidget()->GetBBox(XFA_WidgetStatus_None,
-                                             CXFA_FFWidget::kDoNotDrawFocus);
-  }
-  CFX_FloatRect rcWidget(rcBBox.left, rcBBox.top, rcBBox.left + rcBBox.width,
-                         rcBBox.top + rcBBox.height);
-  rcWidget.left -= 1.0f;
-  rcWidget.right += 1.0f;
-  rcWidget.bottom -= 1.0f;
-  rcWidget.top += 1.0f;
+  CFX_RectF rcBBox = pAnnot->GetXFAWidget()->GetBBox(
+      node->GetFFWidgetType() == XFA_FFWidgetType::kSignature
+          ? CXFA_FFWidget::kDrawFocus
+          : CXFA_FFWidget::kDoNotDrawFocus);
 
+  CFX_FloatRect rcWidget = rcBBox.ToFloatRect();
+  rcWidget.Inflate(1.0f, 1.0f);
   return rcWidget;
 }
 

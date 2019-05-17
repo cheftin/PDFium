@@ -32,6 +32,7 @@
 #include "core/fxcodec/codec/ccodec_iccmodule.h"
 #include "core/fxcodec/fx_codec.h"
 #include "core/fxcrt/fx_memory.h"
+#include "core/fxcrt/fx_safe_types.h"
 #include "core/fxcrt/maybe_owned.h"
 #include "third_party/base/stl_util.h"
 
@@ -464,7 +465,7 @@ std::unique_ptr<CPDF_ColorSpace> CPDF_ColorSpace::Load(
     CPDF_DictionaryLocker locker(pDict);
     for (const auto& it : locker) {
       std::unique_ptr<CPDF_ColorSpace> pRet;
-      CPDF_Object* pValue = it.second.get();
+      CPDF_Object* pValue = it.second.Get();
       if (ToName(pValue))
         pRet.reset(ColorspaceFromName(pValue->GetString()));
       if (pRet)

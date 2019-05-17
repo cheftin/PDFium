@@ -6,6 +6,7 @@
 
 #include "xfa/fxfa/cxfa_ffdocview.h"
 
+#include <set>
 #include <utility>
 
 #include "core/fxcrt/fx_extension.h"
@@ -171,14 +172,11 @@ void CXFA_FFDocView::UpdateDocView() {
 
   LockUpdate();
   while (!m_NewAddedNodes.empty()) {
-    std::vector<CXFA_Node*> nodes = std::move(m_NewAddedNodes);
-    m_NewAddedNodes.clear();
-    for (CXFA_Node* pNode : nodes) {
-      InitCalculate(pNode);
-      InitValidate(pNode);
-      ExecEventActivityByDeepFirst(pNode, XFA_EVENT_Ready, true, true);
-    }
-    // May have created more newly added nodes, try again.
+    CXFA_Node* pNode = m_NewAddedNodes.front();
+    m_NewAddedNodes.pop_front();
+    InitCalculate(pNode);
+    InitValidate(pNode);
+    ExecEventActivityByDeepFirst(pNode, XFA_EVENT_Ready, true, true);
   }
 
   RunSubformIndexChange();
@@ -202,7 +200,8 @@ int32_t CXFA_FFDocView::CountPageViews() const {
 CXFA_FFPageView* CXFA_FFDocView::GetPageView(int32_t nIndex) const {
   if (!m_pXFADocLayout)
     return nullptr;
-  return static_cast<CXFA_FFPageView*>(m_pXFADocLayout->GetPage(nIndex));
+  auto* pPage = m_pXFADocLayout->GetPage(nIndex);
+  return pPage ? pPage->GetPageView() : nullptr;
 }
 
 CXFA_LayoutProcessor* CXFA_FFDocView::GetXFALayout() const {
@@ -252,7 +251,7 @@ void CXFA_FFDocView::ResetNode(CXFA_Node* pNode) {
 }
 
 CXFA_FFWidget* CXFA_FFDocView::GetWidgetForNode(CXFA_Node* node) {
-  return ToFFWidget(ToContentLayoutItem(GetXFALayout()->GetLayoutItem(node)));
+  return GetFFWidget(ToContentLayoutItem(GetXFALayout()->GetLayoutItem(node)));
 }
 
 CXFA_FFWidgetHandler* CXFA_FFDocView::GetWidgetHandler() {
@@ -275,25 +274,22 @@ bool CXFA_FFDocView::SetFocus(CXFA_FFWidget* pNewFocus) {
     return false;
 
   if (pOldFocus) {
-    if (!(pOldFocus->GetStatus() & XFA_WidgetStatus_Focused) &&
-        (pOldFocus->GetStatus() & XFA_WidgetStatus_Visible)) {
+    CXFA_ContentLayoutItem* pItem = pOldFocus->GetLayoutItem();
+    if (pItem->TestStatusBits(XFA_WidgetStatus_Visible) &&
+        !pItem->TestStatusBits(XFA_WidgetStatus_Focused)) {
       if (!pOldFocus->IsLoaded())
         pOldFocus->LoadWidget();
-
       pOldFocus->OnSetFocus(pOldFocus);
     }
-
     pOldFocus->OnKillFocus(pNewFocus);
   }
 
   if (pNewFocus) {
-    if (pNewFocus->GetStatus() & XFA_WidgetStatus_Visible) {
+    if (pNewFocus->GetLayoutItem()->TestStatusBits(XFA_WidgetStatus_Visible)) {
       if (!pNewFocus->IsLoaded())
         pNewFocus->LoadWidget();
-
       pNewFocus->OnSetFocus(pOldFocus);
     }
-
     CXFA_Node* node = pNewFocus->GetNode();
     m_pFocusNode = node->IsWidgetReady() ? node : nullptr;
     m_pFocusWidget = pNewFocus;
@@ -434,9 +430,9 @@ CXFA_FFWidget* CXFA_FFDocView::GetWidgetByName(const WideString& wsName,
   return nullptr;
 }
 
-void CXFA_FFDocView::OnPageEvent(CXFA_ContainerLayoutItem* pSender,
+void CXFA_FFDocView::OnPageEvent(CXFA_ViewLayoutItem* pSender,
                                  uint32_t dwEvent) {
-  CXFA_FFPageView* pFFPageView = static_cast<CXFA_FFPageView*>(pSender);
+  CXFA_FFPageView* pFFPageView = pSender ? pSender->GetPageView() : nullptr;
   m_pDoc->GetDocEnvironment()->PageViewEvent(pFFPageView, dwEvent);
 }
 
@@ -466,8 +462,12 @@ bool CXFA_FFDocView::RunLayout() {
 }
 
 void CXFA_FFDocView::RunSubformIndexChange() {
-  for (CXFA_Node* pSubformNode : m_IndexChangedSubforms) {
-    if (!pSubformNode->IsWidgetReady())
+  std::set<CXFA_Node*> seen;
+  while (!m_IndexChangedSubforms.empty()) {
+    CXFA_Node* pSubformNode = m_IndexChangedSubforms.front();
+    m_IndexChangedSubforms.pop_front();
+    bool bInserted = seen.insert(pSubformNode).second;
+    if (!bInserted || !pSubformNode->IsWidgetReady())
       continue;
 
     CXFA_EventParam eParam;
@@ -475,7 +475,6 @@ void CXFA_FFDocView::RunSubformIndexChange() {
     eParam.m_pTarget = pSubformNode;
     pSubformNode->ProcessEvent(this, XFA_AttributeValue::IndexChange, &eParam);
   }
-  m_IndexChangedSubforms.clear();
 }
 
 void CXFA_FFDocView::AddNewFormNode(CXFA_Node* pNode) {
@@ -485,7 +484,8 @@ void CXFA_FFDocView::AddNewFormNode(CXFA_Node* pNode) {
 
 void CXFA_FFDocView::AddIndexChangedSubform(CXFA_Node* pNode) {
   ASSERT(pNode->GetElementType() == XFA_Element::Subform);
-  m_IndexChangedSubforms.push_back(pNode);
+  if (!pdfium::ContainsValue(m_IndexChangedSubforms, pNode))
+    m_IndexChangedSubforms.push_back(pNode);
 }
 
 void CXFA_FFDocView::RunDocClose() {
@@ -576,11 +576,12 @@ bool CXFA_FFDocView::RunValidate() {
   if (!m_pDoc->GetDocEnvironment()->IsValidationsEnabled(m_pDoc.Get()))
     return false;
 
-  for (CXFA_Node* node : m_ValidateNodes) {
+  while (!m_ValidateNodes.empty()) {
+    CXFA_Node* node = m_ValidateNodes.front();
+    m_ValidateNodes.pop_front();
     if (!node->HasRemovedChildren())
       node->ProcessValidate(this, 0);
   }
-  m_ValidateNodes.clear();
   return true;
 }
 

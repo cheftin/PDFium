@@ -631,8 +631,6 @@ void FPDF_SaveGlyphs(FPDF_CHAR_INFO& charInfo, FPDF_CHAR_ITEM& charItem, FPDF_PA
 void FPDF_ProcessShadingObject(
     CPDF_ShadingObject* pShadingObj,
     const CFX_Matrix& formMatrix,
-    const CPDF_PageObjectList* pObjList,
-    CPDF_PageObjectList::const_iterator ObjPos,
     std::vector<CPDF_ShadingObject*>& shadings) {
     pShadingObj->Transform(formMatrix);
     shadings.push_back(pShadingObj);
@@ -642,8 +640,6 @@ void FPDF_ProcessShadingObject(
 void FPDF_ProcessPathObject(
     CPDF_PathObject* pPathObj,
     const CFX_Matrix& formMatrix,
-    const CPDF_PageObjectList* pObjList,
-    CPDF_PageObjectList::const_iterator ObjPos,
     std::vector<CPDF_PathObject*>& paths) {
     pPathObj->Transform(formMatrix);
     if (pPathObj->m_ClipPath.HasRef()) {
@@ -656,8 +652,6 @@ void FPDF_ProcessPathObject(
 void FPDF_ProcessImageObject(
     CPDF_ImageObject* pImageObj,
     const CFX_Matrix& formMatrix,
-    const CPDF_PageObjectList* pObjList,
-    CPDF_PageObjectList::const_iterator ObjPos,
     std::vector<CPDF_ImageObject*>& images) {
     pImageObj->Transform(formMatrix);
     images.push_back(pImageObj);
@@ -814,23 +808,23 @@ void FPDF_ProcessFormObject(
     std::vector<CPDF_ImageObject*>& images,
     std::vector<CPDF_ShadingObject*>& shadings,
     FPDF_PROCESS_FORM_OBJ_PARAM& form_param) {
-    const CPDF_PageObjectList* pObjectList = pFormObj->form()->GetPageObjectList();
-    if (pObjectList->empty())
+    const CPDF_Form* pObjectHolder = pFormObj->form();
+    if (pObjectHolder->begin() == pObjectHolder->end())
         return;
 
     CFX_Matrix curFormMatrix = pFormObj->form_matrix();
     curFormMatrix.Concat(formMatrix);
 
-    for (auto it = pObjectList->begin(); it != pObjectList->end(); ++it) {
+    for (auto it = pObjectHolder->begin(); it != pObjectHolder->end(); ++it) {
         CPDF_PageObject* pPageObj = it->get();
         if (!pPageObj)
             continue;
         if (pPageObj->IsPath()) {
-            FPDF_ProcessPathObject(pPageObj->AsPath(), curFormMatrix, pObjectList, it, paths);
+            FPDF_ProcessPathObject(pPageObj->AsPath(), curFormMatrix, paths);
             (form_param.pPathsIndex)->push_back(form_param.objIndex);
         }
         else if (pPageObj->IsImage()) {
-            FPDF_ProcessImageObject(pPageObj->AsImage(), curFormMatrix, pObjectList, it, images);
+            FPDF_ProcessImageObject(pPageObj->AsImage(), curFormMatrix, images);
             (form_param.pImagesIndex)->push_back(form_param.objIndex);
         }
         else if (pPageObj->IsForm())
@@ -843,12 +837,12 @@ void FPDF_ProcessFormObject(
             textItem.z_index = form_param.objIndex;
         }
         // else if (pPageObj->IsShading())
-        //     FPDF_ProcessShadingObject(pPageObj->AsShading(), curFormMatrix, pObjectList, it, shadings);
+        //     FPDF_ProcessShadingObject(pPageObj->AsShading(), curFormMatrix, shadings);
     }
 }
 
 void FPDF_ProcessObject(CPDF_Page* pPage, FPDF_PAGE_ITEM& pageObj, bool saveGlyphs, bool saveImages) {
-    if (pPage->GetPageObjectList()->empty())
+    if (pPage->begin() == pPage->end())
         return;
     CPDF_ViewerPreferences viewRef(pPage->GetDocument());
     CPDF_TextPage* textPage = new CPDF_TextPage(
@@ -876,31 +870,32 @@ void FPDF_ProcessObject(CPDF_Page* pPage, FPDF_PAGE_ITEM& pageObj, bool saveGlyp
     std::vector<CPDF_PathObject*> paths;
     std::vector<CPDF_ImageObject*> images;
     std::vector<CPDF_ShadingObject*> shadings;
-    const CPDF_PageObjectList* pObjList = pPage->GetPageObjectList();
-    for (auto it = pObjList->begin(); it != pObjList->end(); ++it, ++obj_index) {
+    for (auto it = pPage->begin(); it != pPage->end(); ++it, ++obj_index) {
         CPDF_PageObject* pObj = it->get();
         if (!pObj)
             continue;
         if (pObj->IsPath()) {
             paths_index.push_back(obj_index);
-            FPDF_ProcessPathObject(pObj->AsPath(), matrix, pObjList, it, paths);
+            FPDF_ProcessPathObject(pObj->AsPath(), matrix, paths);
         }
         else if (pObj->IsImage()) {
             images_index.push_back(obj_index);
-            FPDF_ProcessImageObject(pObj->AsImage(), matrix, pObjList, it, images);
+            FPDF_ProcessImageObject(pObj->AsImage(), matrix, images);
         }
         else if (pObj->IsForm()) {
             form_obj_param.objIndex = obj_index;
-            FPDF_ProcessFormObject(pObj->AsForm(), matrix, paths, images, shadings, form_obj_param);
+            FPDF_ProcessFormObject(
+                pObj->AsForm(), matrix, paths, images, shadings, form_obj_param);
         }
         else if (pObj->IsText()) {
-            if (!FPDF_ProcessTextObject(pPage, textPage, pageObj, pObj->AsText(), texts_index_vec, saveGlyphs))
+            if (!FPDF_ProcessTextObject(
+                    pPage, textPage, pageObj, pObj->AsText(), texts_index_vec, saveGlyphs))
                 continue;
             FPDF_TEXT_ITEM &textItem = pageObj.texts.back();
             textItem.z_index = obj_index;
         }
         // else if (pObj->IsShading())
-        //     FPDF_ProcessShadingObject(pObj->AsShading(), matrix, pObjList, it, shadings);
+        //     FPDF_ProcessShadingObject(pObj->AsShading(), matrix, shadings);
     }
 
     FPDF_FillPageTexts(pPage, textPage, pageObj, texts_index_vec, saveGlyphs);

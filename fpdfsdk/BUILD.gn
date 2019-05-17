@@ -44,6 +44,7 @@ jumbo_source_set("fpdfsdk") {
     "cpdfsdk_widget.h",
     "cpdfsdk_widgethandler.cpp",
     "cpdfsdk_widgethandler.h",
+    "fpdf_api.cpp",
     "fpdf_annot.cpp",
     "fpdf_attachment.cpp",
     "fpdf_catalog.cpp",

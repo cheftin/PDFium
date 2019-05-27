@@ -264,8 +264,8 @@ void FPDF_GetTextStyle(FPDF_CHAR_INFO& charInfo, FPDF_TEXT_ITEM& textItem) {
         CPDF_Font* pdFont = charInfo.m_pTextObj->GetFont();
         CFX_Font* fxFont = pdFont->GetFont();
         textItem.hasFont = true;
-        textItem.familyName = decodeFontName(fxFont->GetFamilyName());
-        textItem.faceName = decodeFontName(fxFont->GetFaceName());
+        textItem.familyName = decodeFontName(fxFont->GetFamilyName().IsEmpty() ? pdFont->GetBaseFont() : fxFont->GetFamilyName());
+        textItem.faceName = decodeFontName(fxFont->GetFaceName().IsEmpty() || fxFont->GetFaceName() == "Untitled" ? pdFont->GetBaseFont() : fxFont->GetFaceName());
         textItem.bold = fxFont->IsBold();
         textItem.italic = fxFont->IsItalic();
         textItem.fontflags = pdFont->GetFontFlags();

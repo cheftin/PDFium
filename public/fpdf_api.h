@@ -236,8 +236,13 @@ FPDF_GetSystemFonts(std::map<std::string, std::string>&);
 #endif
 
 
-std::string FPDF_WStringToString(const std::wstring& src);
-std::string FPDF_WCharToString(const wchar_t wc);
-std::string FPDF_SurrogatePairToString(wchar_t h, wchar_t l);
+FPDF_EXPORT std::string FPDF_WStringToString(const std::wstring& src);
+FPDF_EXPORT std::string FPDF_WCharToString(const wchar_t wc);
+FPDF_EXPORT std::string FPDF_SurrogatePairToString(wchar_t h, wchar_t l);
+
+FPDF_EXPORT void FPDF_SetPageOpaqueData(FPDF_DOCUMENT document, int index, std::string key, std::string value);
+FPDF_EXPORT std::string FPDF_GetPageOpaqueData(FPDF_DOCUMENT document, int index, std::string key);
+FPDF_EXPORT void FPDF_SetGlobalOpaqueData(FPDF_DOCUMENT document, std::string key, std::string value);
+FPDF_EXPORT std::string FPDF_GetGlobalOpaqueData(FPDF_DOCUMENT document, std::string key);
 
 #endif  // PUBLIC_FPDFAPI_H_

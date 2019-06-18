@@ -33,6 +33,7 @@
 #include "testing/image_diff/image_diff_png.h"
 #include "core/fpdfapi/parser/cpdf_dictionary.h"
 #include "core/fpdfapi/parser/cpdf_array.h"
+#include "core/fpdfapi/parser/cpdf_string.h"
 #include "constants/page_object.h"
 #include "core/fpdfapi/parser/cpdf_stream.h"
 #include "core/fpdfapi/parser/cpdf_stream_acc.h"
@@ -1285,4 +1286,36 @@ void FPDF_GetSystemFonts(std::map<std::string, std::string> &fonts) {
     CFX_FontMapper *mapper = mgr->GetBuiltinMapper();
     auto *info = mapper->GetSystemFontInfo();
     fonts = ((CFX_FolderFontInfo*)info)->GetFontList();
+}
+
+FPDF_EXPORT
+void FPDF_SetPageOpaqueData(FPDF_DOCUMENT document, int index, std::string key, std::string value) {
+    // CPDF_Document* doc = CPDFDocumentFromFPDFDocument(document);
+    FPDF_PAGE fpage = FPDF_LoadPage(document, index);
+    CPDF_Page* cpage = CPDFPageFromFPDFPage(fpage);
+    CPDF_Dictionary* res = cpage->GetDict()->GetDictFor(pdfium::page_object::kResources);
+    res->SetNewFor<CPDF_String>(key.c_str(), value.c_str(), false);
+    FPDFPage_GenerateContent(fpage);
+}
+
+FPDF_EXPORT
+std::string FPDF_GetPageOpaqueData(FPDF_DOCUMENT document, int index, std::string key) {
+    FPDF_PAGE fpage = FPDF_LoadPage(document, index);
+    CPDF_Page* cpage = CPDFPageFromFPDFPage(fpage);
+    CPDF_Dictionary* res = cpage->GetDict()->GetDictFor(pdfium::page_object::kResources);
+    ByteString ret = res->GetStringFor(ByteString(key.c_str(), key.size()));
+    if (ret.IsEmpty()) return "";
+    return std::string(ret.c_str(), ret.GetLength());
+}
+
+FPDF_EXPORT
+void FPDF_SetGlobalOpaqueData(FPDF_DOCUMENT document, std::string key, std::string value) {
+    key = "__GLOBAL__::" + key;
+    FPDF_SetPageOpaqueData(document, 0, key, value);
+}
+
+FPDF_EXPORT
+std::string FPDF_GetGlobalOpaqueData(FPDF_DOCUMENT document, std::string key) {
+    key = "__GLOBAL__::" + key;
+    return FPDF_GetPageOpaqueData(document, 0, key);
 }

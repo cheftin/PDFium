@@ -744,6 +744,11 @@ bool FPDF_ProcessTextObject(
 void FPDF_FillPageTexts(CPDF_Page* pPage, CPDF_TextPage* textPage, FPDF_PAGE_ITEM& pageObj, std::vector<std::vector<int>>& textsIndexVec, bool saveGlyphs) {
     if (textsIndexVec.empty())
         return;
+    std::sort(std::begin(textsIndexVec), std::end(textsIndexVec),
+        [](const std::vector<int>& v1, const std::vector<int>& v2) {
+            return v1[0] < v2[0];
+        }
+    );
     int processed_char_counts = 0;
     for (auto& vec : textsIndexVec) {
         processed_char_counts += vec.size();

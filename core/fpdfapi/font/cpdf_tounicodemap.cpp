@@ -190,10 +190,10 @@ void CPDF_ToUnicodeMap::Load(const CPDF_Stream* pStream) {
         } else {
           WideString destcode = StringToWideString(start.AsStringView());
           int len = destcode.GetLength();
-          uint32_t last_char = static_cast<uint32_t>(destcode[len - 1]);
-          if ((last_char & 0xff) > 0xff - (highcode - lowcode)) {
-            break;
-          }
+          // uint32_t last_char = static_cast<uint32_t>(destcode[len - 1]);
+          // if ((last_char & 0xff) > 0xff - (highcode - lowcode)) {
+          //  break;
+          // }
           uint32_t value = 0;
           if (len == 1) {
             value = StringToCode(start.AsStringView());

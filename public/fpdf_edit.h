@@ -219,7 +219,7 @@ FPDF_EXPORT void FPDF_CALLCONV FPDFPageObj_Destroy(FPDF_PAGEOBJECT page_obj);
 //
 //   page_object - handle to a page object.
 //
-// Returns TRUE if |pageObject| contains transparency.
+// Returns TRUE if |page_object| contains transparency.
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
 FPDFPageObj_HasTransparency(FPDF_PAGEOBJECT page_object);
 
@@ -335,7 +335,7 @@ FPDFPageObj_RemoveMark(FPDF_PAGEOBJECT page_object, FPDF_PAGEOBJECTMARK mark);
 // Get the name of a content mark.
 //
 //   mark       - handle to a content mark.
-//   buffer     - buffer for holding the returned name in UTF16-LE. This is only
+//   buffer     - buffer for holding the returned name in UTF-16LE. This is only
 //                modified if |buflen| is longer than the length of the name.
 //                Optional, pass null to just retrieve the size of the buffer
 //                needed.
@@ -365,7 +365,7 @@ FPDFPageObjMark_CountParams(FPDF_PAGEOBJECTMARK mark);
 //
 //   mark       - handle to a content mark.
 //   index      - index of the property.
-//   buffer     - buffer for holding the returned key in UTF16-LE. This is only
+//   buffer     - buffer for holding the returned key in UTF-16LE. This is only
 //                modified if |buflen| is longer than the length of the key.
 //                Optional, pass null to just retrieve the size of the buffer
 //                needed.
@@ -413,7 +413,7 @@ FPDFPageObjMark_GetParamIntValue(FPDF_PAGEOBJECTMARK mark,
 //
 //   mark       - handle to a content mark.
 //   key        - string key of the property.
-//   buffer     - buffer for holding the returned value in UTF16-LE. This is
+//   buffer     - buffer for holding the returned value in UTF-16LE. This is
 //                only modified if |buflen| is longer than the length of the
 //                value.
 //                Optional, pass null to just retrieve the size of the buffer
@@ -582,13 +582,14 @@ FPDFImageObj_LoadJpegFileInline(FPDF_PAGE* pages,
 // and used to scale, rotate, shear and translate the image.
 //
 // Returns TRUE on success.
-FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV FPDFImageObj_GetMatrix(FPDF_PAGEOBJECT path,
-                                                           double* a,
-                                                           double* b,
-                                                           double* c,
-                                                           double* d,
-                                                           double* e,
-                                                           double* f);
+FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
+FPDFImageObj_GetMatrix(FPDF_PAGEOBJECT image_object,
+                       double* a,
+                       double* b,
+                       double* c,
+                       double* d,
+                       double* e,
+                       double* f);
 
 // Set the transform matrix of |image_object|.
 //
@@ -645,8 +646,8 @@ FPDFImageObj_GetBitmap(FPDF_PAGEOBJECT image_object);
 // the decoded image data.
 //
 //   image_object - handle to an image object.
-//   buffer       - buffer for holding the decoded image data in raw bytes.
-//   buflen       - length of the buffer.
+//   buffer       - buffer for holding the decoded image data.
+//   buflen       - length of the buffer in bytes.
 //
 // Returns the length of the decoded image data.
 FPDF_EXPORT unsigned long FPDF_CALLCONV
@@ -659,8 +660,8 @@ FPDFImageObj_GetImageDataDecoded(FPDF_PAGEOBJECT image_object,
 // |buflen| is longer than the length of the raw image data.
 //
 //   image_object - handle to an image object.
-//   buffer       - buffer for holding the raw image data in raw bytes.
-//   buflen       - length of the buffer.
+//   buffer       - buffer for holding the raw image data.
+//   buflen       - length of the buffer in bytes.
 //
 // Returns the length of the raw image data.
 FPDF_EXPORT unsigned long FPDF_CALLCONV
@@ -1204,7 +1205,7 @@ FPDFTextObj_GetFontName(FPDF_PAGEOBJECT text,
 // Returns the number of bytes in the text (including the trailing NUL
 // character) on success, 0 on error.
 //
-// Regardless of the platform, the |buffer| is always in UTF16-LE encoding.
+// Regardless of the platform, the |buffer| is always in UTF-16LE encoding.
 // If |length| is less than the returned length, or |buffer| is NULL, |buffer|
 // will not be modified.
 FPDF_EXPORT unsigned long FPDF_CALLCONV

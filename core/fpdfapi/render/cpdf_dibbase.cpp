@@ -11,7 +11,6 @@
 #include <utility>
 #include <vector>
 
-#include "core/fpdfapi/cpdf_modulemgr.h"
 #include "core/fpdfapi/page/cpdf_docpagedata.h"
 #include "core/fpdfapi/page/cpdf_image.h"
 #include "core/fpdfapi/page/cpdf_imageobject.h"
@@ -21,15 +20,16 @@
 #include "core/fpdfapi/parser/cpdf_stream.h"
 #include "core/fpdfapi/parser/cpdf_stream_acc.h"
 #include "core/fpdfapi/parser/fpdf_parser_decode.h"
+#include "core/fpdfapi/parser/fpdf_parser_utility.h"
 #include "core/fpdfapi/render/cpdf_pagerendercache.h"
 #include "core/fpdfapi/render/cpdf_renderstatus.h"
-#include "core/fxcodec/codec/ccodec_basicmodule.h"
-#include "core/fxcodec/codec/ccodec_jbig2module.h"
-#include "core/fxcodec/codec/ccodec_jpegmodule.h"
-#include "core/fxcodec/codec/ccodec_jpxmodule.h"
-#include "core/fxcodec/codec/ccodec_scanlinedecoder.h"
-#include "core/fxcodec/codec/cjpx_decoder.h"
+#include "core/fxcodec/basic/basicmodule.h"
 #include "core/fxcodec/fx_codec.h"
+#include "core/fxcodec/jbig2/jbig2module.h"
+#include "core/fxcodec/jpeg/jpegmodule.h"
+#include "core/fxcodec/jpx/cjpx_decoder.h"
+#include "core/fxcodec/jpx/jpxmodule.h"
+#include "core/fxcodec/scanlinedecoder.h"
 #include "core/fxcrt/cfx_fixedbufgrow.h"
 #include "core/fxcrt/fx_safe_types.h"
 #include "core/fxge/dib/cfx_dibitmap.h"
@@ -84,42 +84,20 @@ bool AreColorIndicesOutOfBounds(const uint8_t* indices,
   return false;
 }
 
-// Wrapper class to use with std::unique_ptr for CJPX_Decoder.
-class JpxBitMapContext {
- public:
-  explicit JpxBitMapContext(CCodec_JpxModule* jpx_module)
-      : jpx_module_(jpx_module), decoder_(nullptr) {}
-
-  ~JpxBitMapContext() {}
-
-  void set_decoder(std::unique_ptr<CJPX_Decoder> decoder) {
-    decoder_ = std::move(decoder);
-  }
-
-  CJPX_Decoder* decoder() { return decoder_.get(); }
-
- private:
-  CCodec_JpxModule* const jpx_module_;  // Weak pointer.
-  std::unique_ptr<CJPX_Decoder> decoder_;
-
-  // Disallow evil constructors
-  JpxBitMapContext(const JpxBitMapContext&);
-  void operator=(const JpxBitMapContext&);
-};
+CJPX_Decoder::ColorSpaceOption ColorSpaceOptionFromColorSpace(
+    CPDF_ColorSpace* pCS) {
+  if (!pCS)
+    return CJPX_Decoder::kNoColorSpace;
+  if (pCS->GetFamily() == PDFCS_INDEXED)
+    return CJPX_Decoder::kIndexedColorSpace;
+  return CJPX_Decoder::kNormalColorSpace;
+}
 
 }  // namespace
 
-CPDF_DIBBase::CPDF_DIBBase() {}
+CPDF_DIBBase::CPDF_DIBBase() = default;
 
-CPDF_DIBBase::~CPDF_DIBBase() {
-  if (m_pColorSpace && m_pDocument) {
-    auto* pPageData = m_pDocument->GetPageData();
-    if (pPageData) {
-      auto* pSpace = m_pColorSpace.Release();
-      pPageData->ReleaseColorSpace(pSpace->GetArray());
-    }
-  }
-}
+CPDF_DIBBase::~CPDF_DIBBase() = default;
 
 bool CPDF_DIBBase::Load(CPDF_Document* pDoc, const CPDF_Stream* pStream) {
   if (!pStream)
@@ -146,7 +124,7 @@ bool CPDF_DIBBase::Load(CPDF_Document* pDoc, const CPDF_Stream* pStream) {
     return false;
 
   FX_SAFE_UINT32 src_size =
-      CalculatePitch8(m_bpc, m_nComponents, m_Width) * m_Height;
+      fxcodec::CalculatePitch8(m_bpc, m_nComponents, m_Width) * m_Height;
   if (!src_size.IsValid())
     return false;
 
@@ -170,7 +148,7 @@ bool CPDF_DIBBase::Load(CPDF_Document* pDoc, const CPDF_Stream* pStream) {
   } else {
     m_bpp = 24;
   }
-  FX_SAFE_UINT32 pitch = CalculatePitch32(m_bpp, m_Width);
+  FX_SAFE_UINT32 pitch = fxcodec::CalculatePitch32(m_bpp, m_Width);
   if (!pitch.IsValid())
     return false;
 
@@ -179,7 +157,7 @@ bool CPDF_DIBBase::Load(CPDF_Document* pDoc, const CPDF_Stream* pStream) {
   if (m_bColorKey) {
     m_bpp = 32;
     m_AlphaFlag = 2;
-    pitch = CalculatePitch32(m_bpp, m_Width);
+    pitch = fxcodec::CalculatePitch32(m_bpp, m_Width);
     if (!pitch.IsValid())
       return false;
 
@@ -205,7 +183,7 @@ bool CPDF_DIBBase::ContinueToLoadMask() {
   if (!m_bpc || !m_nComponents) {
     return false;
   }
-  FX_SAFE_UINT32 pitch = CalculatePitch32(m_bpp, m_Width);
+  FX_SAFE_UINT32 pitch = fxcodec::CalculatePitch32(m_bpp, m_Width);
   if (!pitch.IsValid())
     return false;
 
@@ -217,7 +195,7 @@ bool CPDF_DIBBase::ContinueToLoadMask() {
   if (m_bColorKey) {
     m_bpp = 32;
     m_AlphaFlag = 2;
-    pitch = CalculatePitch32(m_bpp, m_Width);
+    pitch = fxcodec::CalculatePitch32(m_bpp, m_Width);
     if (!pitch.IsValid())
       return false;
     m_pMaskedLine.reset(FX_Alloc(uint8_t, pitch.ValueOrDie()));
@@ -259,7 +237,7 @@ CPDF_DIBBase::LoadState CPDF_DIBBase::StartLoadDIBBase(
     return LoadState::kFail;
 
   FX_SAFE_UINT32 src_size =
-      CalculatePitch8(m_bpc, m_nComponents, m_Width) * m_Height;
+      fxcodec::CalculatePitch8(m_bpc, m_nComponents, m_Width) * m_Height;
   if (!src_size.IsValid())
     return LoadState::kFail;
 
@@ -304,21 +282,36 @@ CPDF_DIBBase::LoadState CPDF_DIBBase::ContinueLoadDIBBase(
     return LoadState::kFail;
 
   FXCODEC_STATUS iDecodeStatus;
-  CCodec_Jbig2Module* pJbig2Module = CPDF_ModuleMgr::Get()->GetJbig2Module();
+  Jbig2Module* pJbig2Module =
+      fxcodec::ModuleMgr::GetInstance()->GetJbig2Module();
   if (!m_pJbig2Context) {
-    m_pJbig2Context = pdfium::MakeUnique<CCodec_Jbig2Context>();
+    m_pJbig2Context = pdfium::MakeUnique<Jbig2Context>();
     if (m_pStreamAcc->GetImageParam()) {
       const CPDF_Stream* pGlobals =
           m_pStreamAcc->GetImageParam()->GetStreamFor("JBIG2Globals");
       if (pGlobals) {
-        m_pGlobalStream = pdfium::MakeRetain<CPDF_StreamAcc>(pGlobals);
-        m_pGlobalStream->LoadAllDataFiltered();
+        m_pGlobalAcc = pdfium::MakeRetain<CPDF_StreamAcc>(pGlobals);
+        m_pGlobalAcc->LoadAllDataFiltered();
       }
+    }
+    uint32_t nSrcObjNum = 0;
+    pdfium::span<const uint8_t> pSrcSpan;
+    if (m_pStreamAcc) {
+      pSrcSpan = m_pStreamAcc->GetSpan();
+      if (m_pStreamAcc->GetStream())
+        nSrcObjNum = m_pStreamAcc->GetStream()->GetObjNum();
+    }
+    uint32_t nGlobalObjNum = 0;
+    pdfium::span<const uint8_t> pGlobalSpan;
+    if (m_pGlobalAcc) {
+      pGlobalSpan = m_pGlobalAcc->GetSpan();
+      if (m_pGlobalAcc->GetStream())
+        nGlobalObjNum = m_pGlobalAcc->GetStream()->GetObjNum();
     }
     iDecodeStatus = pJbig2Module->StartDecode(
         m_pJbig2Context.get(), m_pDocument->CodecContext(), m_Width, m_Height,
-        m_pStreamAcc, m_pGlobalStream, m_pCachedBitmap->GetBuffer(),
-        m_pCachedBitmap->GetPitch(), pPause);
+        pSrcSpan, nSrcObjNum, pGlobalSpan, nGlobalObjNum,
+        m_pCachedBitmap->GetBuffer(), m_pCachedBitmap->GetPitch(), pPause);
   } else {
     iDecodeStatus = pJbig2Module->ContinueDecode(m_pJbig2Context.get(), pPause);
   }
@@ -326,7 +319,7 @@ CPDF_DIBBase::LoadState CPDF_DIBBase::ContinueLoadDIBBase(
   if (iDecodeStatus < 0) {
     m_pJbig2Context.reset();
     m_pCachedBitmap.Reset();
-    m_pGlobalStream.Reset();
+    m_pGlobalAcc.Reset();
     return LoadState::kFail;
   }
   if (iDecodeStatus == FXCODEC_STATUS_DECODE_TOBECONTINUE)
@@ -386,7 +379,7 @@ bool CPDF_DIBBase::LoadColorInfo(const CPDF_Dictionary* pFormResources,
   if (!pCSObj)
     return false;
 
-  CPDF_DocPageData* pDocPageData = m_pDocument->GetPageData();
+  auto* pDocPageData = CPDF_DocPageData::FromDocument(m_pDocument.Get());
   if (pFormResources)
     m_pColorSpace = pDocPageData->GetColorSpace(pCSObj, pFormResources);
   if (!m_pColorSpace)
@@ -495,8 +488,7 @@ CPDF_DIBBase::LoadState CPDF_DIBBase::CreateDecoder() {
     m_pDecoder = CreateFlateDecoder(src_span, m_Width, m_Height, m_nComponents,
                                     m_bpc, pParams);
   } else if (decoder == "RunLengthDecode") {
-    CCodec_ModuleMgr* pEncoders = CPDF_ModuleMgr::Get()->GetCodecModule();
-    m_pDecoder = pEncoders->GetBasicModule()->CreateRunLengthDecoder(
+    m_pDecoder = BasicModule::CreateRunLengthDecoder(
         src_span, m_Width, m_Height, m_nComponents, m_bpc);
   } else if (decoder == "DCTDecode") {
     if (!CreateDCTDecoder(src_span, pParams))
@@ -506,10 +498,10 @@ CPDF_DIBBase::LoadState CPDF_DIBBase::CreateDecoder() {
     return LoadState::kFail;
 
   FX_SAFE_UINT32 requested_pitch =
-      CalculatePitch8(m_bpc, m_nComponents, m_Width);
+      fxcodec::CalculatePitch8(m_bpc, m_nComponents, m_Width);
   if (!requested_pitch.IsValid())
     return LoadState::kFail;
-  FX_SAFE_UINT32 provided_pitch = CalculatePitch8(
+  FX_SAFE_UINT32 provided_pitch = fxcodec::CalculatePitch8(
       m_pDecoder->GetBPC(), m_pDecoder->CountComps(), m_pDecoder->GetWidth());
   if (!provided_pitch.IsValid())
     return LoadState::kFail;
@@ -520,7 +512,7 @@ CPDF_DIBBase::LoadState CPDF_DIBBase::CreateDecoder() {
 
 bool CPDF_DIBBase::CreateDCTDecoder(pdfium::span<const uint8_t> src_span,
                                     const CPDF_Dictionary* pParams) {
-  CCodec_JpegModule* pJpegModule = CPDF_ModuleMgr::Get()->GetJpegModule();
+  JpegModule* pJpegModule = fxcodec::ModuleMgr::GetInstance()->GetJpegModule();
   m_pDecoder = pJpegModule->CreateDecoder(
       src_span, m_Width, m_Height, m_nComponents,
       !pParams || pParams->GetIntegerFor("ColorTransform", 1));
@@ -553,7 +545,7 @@ bool CPDF_DIBBase::CreateDCTDecoder(pdfium::span<const uint8_t> src_span,
       case PDFCS_DEVICEGRAY:
       case PDFCS_DEVICERGB:
       case PDFCS_DEVICECMYK: {
-        uint32_t dwMinComps = ComponentsForFamily(m_Family);
+        uint32_t dwMinComps = CPDF_ColorSpace::ComponentsForFamily(m_Family);
         if (m_pColorSpace->CountComponents() < dwMinComps ||
             m_nComponents < dwMinComps) {
           return false;
@@ -593,20 +585,19 @@ bool CPDF_DIBBase::CreateDCTDecoder(pdfium::span<const uint8_t> src_span,
 }
 
 RetainPtr<CFX_DIBitmap> CPDF_DIBBase::LoadJpxBitmap() {
-  CCodec_JpxModule* pJpxModule = CPDF_ModuleMgr::Get()->GetJpxModule();
-  auto context = pdfium::MakeUnique<JpxBitMapContext>(pJpxModule);
-  context->set_decoder(
-      pJpxModule->CreateDecoder(m_pStreamAcc->GetSpan(), m_pColorSpace.Get()));
-  if (!context->decoder())
+  std::unique_ptr<CJPX_Decoder> decoder = JpxModule::CreateDecoder(
+      m_pStreamAcc->GetSpan(),
+      ColorSpaceOptionFromColorSpace(m_pColorSpace.Get()));
+  if (!decoder)
     return nullptr;
 
-  if (!context->decoder()->StartDecode())
+  if (!decoder->StartDecode())
     return nullptr;
 
   uint32_t width = 0;
   uint32_t height = 0;
   uint32_t components = 0;
-  pJpxModule->GetImageInfo(context->decoder(), &width, &height, &components);
+  decoder->GetInfo(&width, &height, &components);
   if (static_cast<int>(width) < m_Width || static_cast<int>(height) < m_Height)
     return nullptr;
 
@@ -652,8 +643,8 @@ RetainPtr<CFX_DIBitmap> CPDF_DIBBase::LoadJpxBitmap() {
     output_offsets[0] = 2;
     output_offsets[2] = 0;
   }
-  if (!pJpxModule->Decode(context->decoder(), pCachedBitmap->GetBuffer(),
-                          pCachedBitmap->GetPitch(), output_offsets)) {
+  if (!decoder->Decode(pCachedBitmap->GetBuffer(), pCachedBitmap->GetPitch(),
+                       output_offsets)) {
     return nullptr;
   }
 
@@ -683,9 +674,8 @@ CPDF_DIBBase::LoadState CPDF_DIBBase::StartLoadMask() {
   const CPDF_Array* pMatte = m_pMaskStream->GetDict()->GetArrayFor("Matte");
   if (pMatte && m_pColorSpace && m_Family != PDFCS_PATTERN &&
       m_pColorSpace->CountComponents() <= m_nComponents) {
-    std::vector<float> colors(m_nComponents);
-    for (uint32_t i = 0; i < m_nComponents; i++)
-      colors[i] = pMatte->GetFloatAt(i);
+    std::vector<float> colors =
+        ReadArrayElementsToVector(pMatte, m_nComponents);
 
     float R;
     float G;
@@ -972,7 +962,8 @@ const uint8_t* CPDF_DIBBase::GetScanline(int line) const {
   if (m_bpc == 0)
     return nullptr;
 
-  FX_SAFE_UINT32 src_pitch = CalculatePitch8(m_bpc, m_nComponents, m_Width);
+  FX_SAFE_UINT32 src_pitch =
+      fxcodec::CalculatePitch8(m_bpc, m_nComponents, m_Width);
   if (!src_pitch.IsValid())
     return nullptr;
   uint32_t src_pitch_value = src_pitch.ValueOrDie();
@@ -1104,7 +1095,8 @@ void CPDF_DIBBase::DownSampleScanline(int line,
   }
 
   uint32_t src_width = m_Width;
-  FX_SAFE_UINT32 pitch = CalculatePitch8(m_bpc, m_nComponents, m_Width);
+  FX_SAFE_UINT32 pitch =
+      fxcodec::CalculatePitch8(m_bpc, m_nComponents, m_Width);
   if (!pitch.IsValid())
     return;
 

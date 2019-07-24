@@ -9,6 +9,7 @@
 #include <memory>
 #include <vector>
 
+#include "core/fpdfapi/page/cpdf_occontext.h"
 #include "core/fpdfapi/page/cpdf_page.h"
 #include "core/fpdfapi/parser/cpdf_dictionary.h"
 #include "core/fpdfapi/parser/cpdf_document.h"
@@ -16,7 +17,6 @@
 #include "core/fpdfdoc/cpdf_formcontrol.h"
 #include "core/fpdfdoc/cpdf_formfield.h"
 #include "core/fpdfdoc/cpdf_interactiveform.h"
-#include "core/fpdfdoc/cpdf_occontext.h"
 #include "core/fxge/cfx_defaultrenderdevice.h"
 #include "fpdfsdk/cpdfsdk_actionhandler.h"
 #include "fpdfsdk/cpdfsdk_formfillenvironment.h"
@@ -683,7 +683,7 @@ FPDF_EXPORT void FPDF_CALLCONV FORM_DoDocumentAAction(FPDF_FORMHANDLE hHandle,
     return;
 
   CPDF_Document* pDoc = pFormFillEnv->GetPDFDocument();
-  const CPDF_Dictionary* pDict = pDoc->GetRoot();
+  CPDF_Dictionary* pDict = pDoc->GetRoot();
   if (!pDict)
     return;
 

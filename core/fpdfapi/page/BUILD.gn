@@ -49,6 +49,8 @@ jumbo_source_set("page") {
     "cpdf_imageobject.h",
     "cpdf_meshstream.cpp",
     "cpdf_meshstream.h",
+    "cpdf_occontext.cpp",
+    "cpdf_occontext.h",
     "cpdf_page.cpp",
     "cpdf_page.h",
     "cpdf_pagemodule.cpp",
@@ -57,6 +59,8 @@ jumbo_source_set("page") {
     "cpdf_pageobject.h",
     "cpdf_pageobjectholder.cpp",
     "cpdf_pageobjectholder.h",
+    "cpdf_pagerendercontext.cpp",
+    "cpdf_pagerendercontext.h",
     "cpdf_path.cpp",
     "cpdf_path.h",
     "cpdf_pathobject.cpp",
@@ -87,6 +91,8 @@ jumbo_source_set("page") {
     "cpdf_textstate.h",
     "cpdf_tilingpattern.cpp",
     "cpdf_tilingpattern.h",
+    "cpdf_transparency.cpp",
+    "cpdf_transparency.h",
     "ipdf_page.h",
   ]
   configs += [ "../../../:pdfium_core_config" ]
@@ -100,12 +106,7 @@ jumbo_source_set("page") {
     "../font",
     "../parser",
   ]
-  allow_circular_includes_from = [
-    "../cmaps",
-    "../font",
-    "../parser",
-    "../../fxcodec",
-  ]
+  allow_circular_includes_from = [ "../font" ]
   if (pdf_use_skia || pdf_use_skia_paths) {
     allow_circular_includes_from += [ "../../fxge" ]
   }

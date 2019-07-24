@@ -68,7 +68,7 @@ class CPDF_Font {
   CPDF_Dictionary* GetFontDict() const { return m_pFontDict.Get(); }
   void ClearFontDict() { m_pFontDict = nullptr; }
   bool IsStandardFont() const;
-  bool HasFace() const { return !!m_Font.GetFace(); }
+  bool HasFace() const { return !!m_Font.GetFaceRec(); }
   void AppendChar(ByteString* str, uint32_t charcode) const;
 
   const FX_RECT& GetFontBBox() const { return m_FontBBox; }
@@ -94,8 +94,10 @@ class CPDF_Font {
  protected:
   CPDF_Font(CPDF_Document* pDocument, CPDF_Dictionary* pFontDict);
 
-  static int TT2PDF(int m, FXFT_Face face);
-  static bool FT_UseTTCharmap(FXFT_Face face, int platform_id, int encoding_id);
+  static int TT2PDF(int m, FXFT_FaceRec* face);
+  static bool FT_UseTTCharmap(FXFT_FaceRec* face,
+                              int platform_id,
+                              int encoding_id);
   static const char* GetAdobeCharName(int iBaseEncoding,
                                       const std::vector<ByteString>& charnames,
                                       uint32_t charcode);
@@ -103,7 +105,7 @@ class CPDF_Font {
   virtual bool Load() = 0;
 
   void LoadUnicodeMap() const;  // logically const only.
-  void LoadFontDescriptor(const CPDF_Dictionary* pDict);
+  void LoadFontDescriptor(const CPDF_Dictionary* pFontDesc);
   void CheckFontMetrics();
 
   UnownedPtr<CPDF_Document> const m_pDocument;

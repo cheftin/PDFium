@@ -14,6 +14,7 @@
 #include "constants/annotation_common.h"
 #include "constants/form_fields.h"
 #include "core/fpdfapi/font/cpdf_font.h"
+#include "core/fpdfapi/page/cpdf_docpagedata.h"
 #include "core/fpdfapi/parser/cpdf_array.h"
 #include "core/fpdfapi/parser/cpdf_boolean.h"
 #include "core/fpdfapi/parser/cpdf_dictionary.h"
@@ -26,11 +27,13 @@
 #include "core/fpdfapi/parser/fpdf_parser_decode.h"
 #include "core/fpdfapi/parser/fpdf_parser_utility.h"
 #include "core/fpdfdoc/cpdf_annot.h"
+#include "core/fpdfdoc/cpdf_color_utils.h"
 #include "core/fpdfdoc/cpdf_defaultappearance.h"
 #include "core/fpdfdoc/cpdf_formfield.h"
 #include "core/fpdfdoc/cpdf_variabletext.h"
 #include "core/fpdfdoc/cpvt_fontmap.h"
 #include "core/fpdfdoc/cpvt_word.h"
+#include "core/fxge/cfx_renderdevice.h"
 #include "third_party/base/ptr_util.h"
 
 namespace {
@@ -308,7 +311,7 @@ ByteString GetColorStringWithDefault(CPDF_Array* pColor,
                                      const CFX_Color& crDefaultColor,
                                      PaintOperation nOperation) {
   if (pColor) {
-    CFX_Color color = CFX_Color::ParseColor(*pColor);
+    CFX_Color color = fpdfdoc::CFXColorFromArray(*pColor);
     return GenerateColorAP(color, nOperation);
   }
 
@@ -486,7 +489,7 @@ RetainPtr<CPDF_Dictionary> GenerateExtGStateDict(
 
   auto pExtGStateDict =
       pdfium::MakeRetain<CPDF_Dictionary>(pAnnotDict.GetByteStringPool());
-  pExtGStateDict->SetFor(sExtGSDictName, std::move(pGSDict));
+  pExtGStateDict->SetFor(sExtGSDictName, pGSDict);
   return pExtGStateDict;
 }
 
@@ -495,10 +498,8 @@ RetainPtr<CPDF_Dictionary> GenerateResourceDict(
     RetainPtr<CPDF_Dictionary> pExtGStateDict,
     RetainPtr<CPDF_Dictionary> pResourceFontDict) {
   auto pResourceDict = pDoc->New<CPDF_Dictionary>();
-  if (pExtGStateDict)
-    pResourceDict->SetFor("ExtGState", std::move(pExtGStateDict));
-  if (pResourceFontDict)
-    pResourceDict->SetFor("Font", std::move(pResourceFontDict));
+  if (pExtGStateDict) pResourceDict->SetFor("ExtGState", pExtGStateDict);
+  if (pResourceFontDict) pResourceDict->SetFor("Font", pResourceFontDict);
   return pResourceDict;
 }
 
@@ -526,7 +527,7 @@ void GenerateAndSetAPDict(CPDF_Document* pDoc,
                            ? CPDF_Annot::BoundingRectFromQuadPoints(pAnnotDict)
                            : pAnnotDict->GetRectFor(pdfium::annotation::kRect);
   pStreamDict->SetRectFor("BBox", rect);
-  pStreamDict->SetFor("Resources", std::move(pResourceDict));
+  pStreamDict->SetFor("Resources", pResourceDict);
 }
 
 bool GenerateCircleAP(CPDF_Document* pDoc, CPDF_Dictionary* pAnnotDict) {
@@ -761,7 +762,8 @@ bool GeneratePopupAP(CPDF_Document* pDoc, CPDF_Dictionary* pAnnotDict) {
 
   ByteString sFontName = "FONT";
   auto pResourceFontDict = GenerateResourceFontDict(pDoc, sFontName);
-  CPDF_Font* pDefFont = pDoc->LoadFont(pResourceFontDict.Get());
+  auto* pData = CPDF_DocPageData::FromDocument(pDoc);
+  CPDF_Font* pDefFont = pData->GetFont(pResourceFontDict.Get());
   if (!pDefFont)
     return false;
 
@@ -934,7 +936,7 @@ void CPVT_GenerateAP::GenerateFormAP(CPDF_Document* pDoc,
     return;
 
   ByteString font_name = *font;
-  CFX_Color crText = CFX_Color::ParseColor(DA);
+  CFX_Color crText = fpdfdoc::CFXColorFromString(DA);
   CPDF_Dictionary* pDRDict = pFormDict->GetDictFor("DR");
   if (!pDRDict)
     return;
@@ -953,7 +955,8 @@ void CPVT_GenerateAP::GenerateFormAP(CPDF_Document* pDoc,
     pDRFontDict->SetNewFor<CPDF_Reference>(font_name, pDoc,
                                            pFontDict->GetObjNum());
   }
-  CPDF_Font* pDefFont = pDoc->LoadFont(pFontDict);
+  auto* pData = CPDF_DocPageData::FromDocument(pDoc);
+  CPDF_Font* pDefFont = pData->GetFont(pFontDict);
   if (!pDefFont)
     return;
 
@@ -1030,9 +1033,9 @@ void CPVT_GenerateAP::GenerateFormAP(CPDF_Document* pDoc,
   CFX_Color crBG;
   if (CPDF_Dictionary* pMKDict = pAnnotDict->GetDictFor("MK")) {
     if (CPDF_Array* pArray = pMKDict->GetArrayFor("BC"))
-      crBorder = CFX_Color::ParseColor(*pArray);
+      crBorder = fpdfdoc::CFXColorFromArray(*pArray);
     if (CPDF_Array* pArray = pMKDict->GetArrayFor("BG"))
-      crBG = CFX_Color::ParseColor(*pArray);
+      crBG = fpdfdoc::CFXColorFromArray(*pArray);
   }
   std::ostringstream sAppStream;
   ByteString sBG = GenerateColorAP(crBG, PaintOperation::FILL);
@@ -1324,7 +1327,6 @@ void CPVT_GenerateAP::GenerateFormAP(CPDF_Document* pDoc,
       }
     }
   }
-  return;
 }
 
 // static

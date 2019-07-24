@@ -36,20 +36,7 @@ CPDF_ShadingPattern::CPDF_ShadingPattern(CPDF_Document* pDoc,
     SetPatternToFormMatrix();
 }
 
-CPDF_ShadingPattern::~CPDF_ShadingPattern() {
-  CPDF_ColorSpace* pCountedCS = m_pCountedCS ? m_pCountedCS->get() : nullptr;
-  if (pCountedCS) {
-    auto* pPageData = document()->GetPageData();
-    if (pPageData) {
-      m_pCS.Release();  // Give up unowned reference first.
-      pPageData->ReleaseColorSpace(pCountedCS->GetArray());
-    }
-  }
-}
-
-CPDF_TilingPattern* CPDF_ShadingPattern::AsTilingPattern() {
-  return nullptr;
-}
+CPDF_ShadingPattern::~CPDF_ShadingPattern() = default;
 
 CPDF_ShadingPattern* CPDF_ShadingPattern::AsShadingPattern() {
   return this;
@@ -80,7 +67,7 @@ bool CPDF_ShadingPattern::Load() {
   if (!pCSObj)
     return false;
 
-  CPDF_DocPageData* pDocPageData = document()->GetPageData();
+  auto* pDocPageData = CPDF_DocPageData::FromDocument(document());
   m_pCS = pDocPageData->GetColorSpace(pCSObj, nullptr);
 
   // The color space is required and cannot be a Pattern space, according to the
@@ -88,7 +75,6 @@ bool CPDF_ShadingPattern::Load() {
   if (!m_pCS || m_pCS->GetFamily() == PDFCS_PATTERN)
     return false;
 
-  m_pCountedCS = pDocPageData->FindColorSpacePtr(m_pCS->GetArray());
   m_ShadingType = ToShadingType(pShadingDict->GetIntegerFor("ShadingType"));
   return Validate();
 }

@@ -11,6 +11,7 @@
 
 #include <Carbon/Carbon.h>
 
+#include "core/fxge/cfx_gemodule.h"
 #include "core/fxge/cfx_graphstatedata.h"
 #include "core/fxge/cfx_pathdata.h"
 #include "core/fxge/fx_dib.h"
@@ -18,27 +19,28 @@
 
 class CQuartz2D {
  public:
-  void* createGraphics(const RetainPtr<CFX_DIBitmap>& bitmap);
-  void destroyGraphics(void* graphics);
+  void* CreateGraphics(const RetainPtr<CFX_DIBitmap>& bitmap);
+  void DestroyGraphics(void* graphics);
 
   void* CreateFont(const uint8_t* pFontData, uint32_t dwFontSize);
   void DestroyFont(void* pFont);
-  void setGraphicsTextMatrix(void* graphics, CFX_Matrix* matrix);
-  bool drawGraphicsString(void* graphics,
+  void SetGraphicsTextMatrix(void* graphics, const CFX_Matrix& matrix);
+  bool DrawGraphicsString(void* graphics,
                           void* font,
                           float fontSize,
                           uint16_t* glyphIndices,
                           CGPoint* glyphPositions,
                           int32_t chars,
                           FX_ARGB argb);
-  void saveGraphicsState(void* graphics);
-  void restoreGraphicsState(void* graphics);
 };
 
-class CApplePlatform {
+class CApplePlatform : public CFX_GEModule::PlatformIface {
  public:
-  CApplePlatform() {}
-  ~CApplePlatform() {}
+  CApplePlatform();
+  ~CApplePlatform() override;
+
+  // CFX_GEModule::PlatformIface:
+  void Init() override;
 
   CQuartz2D m_quartz2d;
 };

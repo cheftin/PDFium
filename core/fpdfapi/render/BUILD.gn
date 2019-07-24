@@ -40,12 +40,10 @@ jumbo_source_set("render") {
     "cpdf_textrenderer.h",
     "cpdf_transferfunc.cpp",
     "cpdf_transferfunc.h",
-    "cpdf_transparency.cpp",
-    "cpdf_transparency.h",
     "cpdf_type3cache.cpp",
     "cpdf_type3cache.h",
-    "cpdf_type3glyphs.cpp",
-    "cpdf_type3glyphs.h",
+    "cpdf_type3glyphmap.cpp",
+    "cpdf_type3glyphmap.h",
   ]
   configs += [ "../../../:pdfium_core_config" ]
   deps = [
@@ -57,10 +55,7 @@ jumbo_source_set("render") {
     "../page",
     "../parser",
   ]
-  allow_circular_includes_from = [
-    "../parser",
-    "../page",
-  ]
+  allow_circular_includes_from = [ "../page" ]
   visibility = [ "../../../*" ]
 }
 

@@ -13,13 +13,13 @@
 #include <vector>
 
 #include "core/fxcrt/retain_ptr.h"
+#include "core/fxge/cfx_gemodule.h"
 #include "core/fxge/cfx_pathdata.h"
 #include "core/fxge/cfx_windowsrenderdevice.h"
 #include "core/fxge/renderdevicedriver_iface.h"
 #include "core/fxge/win32/cfx_psrenderer.h"
 #include "core/fxge/win32/cpsoutput.h"
 
-class CCodec_ModuleMgr;
 class CFX_ImageRenderer;
 class TextCharPos;
 struct WINDIB_Open_Args_;
@@ -59,18 +59,25 @@ class CGdiplusExt {
   HMODULE m_GdiModule = nullptr;
 };
 
-class CWin32Platform {
+class CWin32Platform : public CFX_GEModule::PlatformIface {
  public:
-  bool m_bHalfTone;
+  CWin32Platform();
+  ~CWin32Platform() override;
+
+  // CFX_GEModule::PlatformIface:
+  void Init() override;
+
+  bool m_bHalfTone = false;
   CGdiplusExt m_GdiplusExt;
 };
 
 class CGdiDeviceDriver : public RenderDeviceDriverIface {
  protected:
-  CGdiDeviceDriver(HDC hDC, int device_class);
+  CGdiDeviceDriver(HDC hDC, DeviceType device_type);
   ~CGdiDeviceDriver() override;
 
-  // RenderDeviceDriverIface
+  // RenderDeviceDriverIface:
+  DeviceType GetDeviceType() const override;
   int GetDeviceCaps(int caps_id) const override;
   void SaveState() override;
   void RestoreState(bool bKeepSaved) override;
@@ -115,12 +122,12 @@ class CGdiDeviceDriver : public RenderDeviceDriverIface {
                           int dest_height,
                           uint32_t bitmap_color);
 
-  HDC m_hDC;
+  const HDC m_hDC;
   bool m_bMetafileDCType;
   int m_Width;
   int m_Height;
   int m_nBitsPerPixel;
-  int m_DeviceClass;
+  const DeviceType m_DeviceType;
   int m_RenderCaps;
 };
 
@@ -130,6 +137,8 @@ class CGdiDisplayDriver final : public CGdiDeviceDriver {
   ~CGdiDisplayDriver() override;
 
  private:
+  // CGdiDisplayDriver:
+  int GetDeviceCaps(int caps_id) const override;
   bool GetDIBits(const RetainPtr<CFX_DIBitmap>& pBitmap,
                  int left,
                  int top) override;
@@ -171,6 +180,7 @@ class CGdiPrinterDriver final : public CGdiDeviceDriver {
   ~CGdiPrinterDriver() override;
 
  private:
+  // CGdiPrinterDriver:
   int GetDeviceCaps(int caps_id) const override;
   bool SetDIBits(const RetainPtr<CFX_DIBBase>& pBitmap,
                  uint32_t color,
@@ -197,7 +207,7 @@ class CGdiPrinterDriver final : public CGdiDeviceDriver {
   bool DrawDeviceText(int nChars,
                       const TextCharPos* pCharPos,
                       CFX_Font* pFont,
-                      const CFX_Matrix* pObject2Device,
+                      const CFX_Matrix& mtObject2Device,
                       float font_size,
                       uint32_t color) override;
 
@@ -207,14 +217,15 @@ class CGdiPrinterDriver final : public CGdiDeviceDriver {
 
 class CPSPrinterDriver final : public RenderDeviceDriverIface {
  public:
-  CPSPrinterDriver(CCodec_ModuleMgr* pModuleMgr,
-                   HDC hDC,
+  CPSPrinterDriver(HDC hDC,
                    WindowsPrintMode mode,
-                   bool bCmykOutput);
+                   bool bCmykOutput,
+                   const EncoderIface* pEncoderIface);
   ~CPSPrinterDriver() override;
 
  private:
-  // RenderDeviceDriverIface
+  // RenderDeviceDriverIface:
+  DeviceType GetDeviceType() const override;
   int GetDeviceCaps(int caps_id) const override;
   bool StartRendering() override;
   void EndRendering() override;
@@ -259,7 +270,7 @@ class CPSPrinterDriver final : public RenderDeviceDriverIface {
   bool DrawDeviceText(int nChars,
                       const TextCharPos* pCharPos,
                       CFX_Font* pFont,
-                      const CFX_Matrix* pObject2Device,
+                      const CFX_Matrix& mtObject2Device,
                       float font_size,
                       uint32_t color) override;
 
@@ -279,7 +290,8 @@ class CTextOnlyPrinterDriver final : public RenderDeviceDriverIface {
   ~CTextOnlyPrinterDriver() override;
 
  private:
-  // RenderDeviceDriverIface
+  // RenderDeviceDriverIface:
+  DeviceType GetDeviceType() const override;
   int GetDeviceCaps(int caps_id) const override;
   void SaveState() override {}
   void RestoreState(bool bKeepSaved) override {}
@@ -322,7 +334,7 @@ class CTextOnlyPrinterDriver final : public RenderDeviceDriverIface {
   bool DrawDeviceText(int nChars,
                       const TextCharPos* pCharPos,
                       CFX_Font* pFont,
-                      const CFX_Matrix* pObject2Device,
+                      const CFX_Matrix& mtObject2Device,
                       float font_size,
                       uint32_t color) override;
 

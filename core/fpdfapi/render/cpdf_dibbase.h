@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "core/fpdfapi/page/cpdf_clippath.h"
+#include "core/fpdfapi/page/cpdf_colorspace.h"
 #include "core/fpdfapi/page/cpdf_countedobject.h"
 #include "core/fpdfapi/page/cpdf_graphicstates.h"
 #include "core/fpdfapi/render/cpdf_imageloader.h"
@@ -20,8 +21,6 @@
 #include "core/fxge/dib/cfx_dibbase.h"
 #include "third_party/base/span.h"
 
-class CCodec_Jbig2Context;
-class CCodec_ScanlineDecoder;
 class CPDF_Color;
 class CPDF_Dictionary;
 class CPDF_Document;
@@ -34,6 +33,11 @@ struct DIB_COMP_DATA {
   int m_ColorKeyMin;
   int m_ColorKeyMax;
 };
+
+namespace fxcodec {
+class Jbig2Context;
+class ScanlineDecoder;
+}
 
 #define FPDF_HUGE_IMAGE_SIZE 60000000
 
@@ -58,7 +62,7 @@ class CPDF_DIBBase final : public CFX_DIBBase {
                           int clip_left,
                           int clip_width) const override;
 
-  const CPDF_ColorSpace* GetColorSpace() const { return m_pColorSpace.Get(); }
+  RetainPtr<CPDF_ColorSpace> GetColorSpace() const { return m_pColorSpace; }
   uint32_t GetMatteColor() const { return m_MatteColor; }
 
   LoadState StartLoadDIBBase(CPDF_Document* pDoc,
@@ -88,7 +92,7 @@ class CPDF_DIBBase final : public CFX_DIBBase {
   RetainPtr<CFX_DIBitmap> LoadJpxBitmap();
   void LoadPalette();
   LoadState CreateDecoder();
-  bool CreateDCTDecoder(pdfium::span<const uint8_t> src_data,
+  bool CreateDCTDecoder(pdfium::span<const uint8_t> src_span,
                         const CPDF_Dictionary* pParams);
   void TranslateScanline24bpp(uint8_t* dest_scan,
                               const uint8_t* src_scan) const;
@@ -128,7 +132,7 @@ class CPDF_DIBBase final : public CFX_DIBBase {
   UnownedPtr<const CPDF_Stream> m_pStream;
   UnownedPtr<const CPDF_Dictionary> m_pDict;
   RetainPtr<CPDF_StreamAcc> m_pStreamAcc;
-  UnownedPtr<CPDF_ColorSpace> m_pColorSpace;
+  RetainPtr<CPDF_ColorSpace> m_pColorSpace;
   uint32_t m_Family = 0;
   uint32_t m_bpc = 0;
   uint32_t m_bpc_orig = 0;
@@ -147,11 +151,11 @@ class CPDF_DIBBase final : public CFX_DIBBase {
   std::unique_ptr<uint8_t, FxFreeDeleter> m_pMaskedLine;
   RetainPtr<CFX_DIBitmap> m_pCachedBitmap;
   RetainPtr<CPDF_DIBBase> m_pMask;
-  RetainPtr<CPDF_StreamAcc> m_pGlobalStream;
-  std::unique_ptr<CCodec_ScanlineDecoder> m_pDecoder;
+  RetainPtr<CPDF_StreamAcc> m_pGlobalAcc;
+  std::unique_ptr<fxcodec::ScanlineDecoder> m_pDecoder;
 
   // Must come after |m_pCachedBitmap|.
-  std::unique_ptr<CCodec_Jbig2Context> m_pJbig2Context;
+  std::unique_ptr<fxcodec::Jbig2Context> m_pJbig2Context;
 
   UnownedPtr<const CPDF_Stream> m_pMaskStream;
   LoadState m_Status = LoadState::kFail;

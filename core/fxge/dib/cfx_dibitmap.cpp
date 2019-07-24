@@ -11,8 +11,8 @@
 #include <utility>
 
 #include "build/build_config.h"
-#include "core/fxcodec/fx_codec.h"
 #include "core/fxge/cfx_cliprgn.h"
+#include "core/fxge/dib/cfx_cmyk_to_srgb.h"
 #include "core/fxge/dib/cfx_scanlinecompositor.h"
 
 namespace {
@@ -348,7 +348,7 @@ bool CFX_DIBitmap::LoadChannelFromAlpha(
     if (!pSrcMatched)
       return false;
 
-    pSrcClone = std::move(pSrcMatched);
+    pSrcClone = pSrcMatched;
   }
   RetainPtr<CFX_DIBitmap> pDst(this);
   if (destChannel == FXDIB_Alpha && m_pAlphaMask) {

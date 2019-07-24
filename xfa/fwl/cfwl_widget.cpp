@@ -27,7 +27,6 @@
 #include "xfa/fwl/cfwl_themetext.h"
 #include "xfa/fwl/cfwl_widgetmgr.h"
 #include "xfa/fwl/ifwl_themeprovider.h"
-#include "xfa/fxfa/cxfa_ffapp.h"
 
 #define FWL_WGT_CalcHeight 2048
 #define FWL_WGT_CalcWidth 2048
@@ -199,6 +198,13 @@ bool CFWL_Widget::IsPopup() const {
 
 bool CFWL_Widget::IsChild() const {
   return !!(m_pProperties->m_dwStyles & FWL_WGTSTYLE_Child);
+}
+
+CFWL_Widget* CFWL_Widget::GetOutmost() const {
+  CFWL_Widget* pOuter = const_cast<CFWL_Widget*>(this);
+  while (pOuter->GetOuter())
+    pOuter = pOuter->GetOuter();
+  return pOuter;
 }
 
 CFX_RectF CFWL_Widget::GetEdgeRect() const {

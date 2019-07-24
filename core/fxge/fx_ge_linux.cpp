@@ -88,15 +88,15 @@ void* CFX_LinuxFontInfo::MapFont(int weight,
                                  bool bItalic,
                                  int charset,
                                  int pitch_family,
-                                 const char* cstr_face) {
-  void* font = GetSubstFont(cstr_face);
+                                 const char* family) {
+  void* font = GetSubstFont(family);
   if (font)
     return font;
 
   bool bCJK = true;
   switch (charset) {
     case FX_CHARSET_ShiftJIS: {
-      uint8_t index = GetJapanesePreference(cstr_face, weight, pitch_family);
+      uint8_t index = GetJapanesePreference(family, weight, pitch_family);
       ASSERT(index < FX_ArraySize(g_LinuxJpFontList));
       for (const char* name : g_LinuxJpFontList[index]) {
         auto it = m_FontList.find(name);
@@ -133,7 +133,7 @@ void* CFX_LinuxFontInfo::MapFont(int weight,
       bCJK = false;
       break;
   }
-  return FindFont(weight, bItalic, charset, pitch_family, cstr_face, !bCJK);
+  return FindFont(weight, bItalic, charset, pitch_family, family, !bCJK);
 }
 
 bool CFX_LinuxFontInfo::ParseFontCfg(const char** pUserPaths) {
@@ -159,10 +159,21 @@ std::unique_ptr<SystemFontInfoIface> SystemFontInfoIface::CreateDefault(
   return std::move(pInfo);
 }
 
-void CFX_GEModule::InitPlatform() {
-  m_pFontMgr->SetSystemFontInfo(
-      SystemFontInfoIface::CreateDefault(m_pUserFontPaths));
-}
+class CLinuxPlatform : public CFX_GEModule::PlatformIface {
+ public:
+  CLinuxPlatform() = default;
+  ~CLinuxPlatform() override = default;
 
-void CFX_GEModule::DestroyPlatform() {}
+  void Init() override {
+    CFX_GEModule* pModule = CFX_GEModule::Get();
+    pModule->GetFontMgr()->SetSystemFontInfo(
+        SystemFontInfoIface::CreateDefault(pModule->GetUserFontPaths()));
+  }
+};
+
+// static
+std::unique_ptr<CFX_GEModule::PlatformIface>
+CFX_GEModule::PlatformIface::Create() {
+  return pdfium::MakeUnique<CLinuxPlatform>();
+}
 #endif  // _FX_PLATFORM_ == _FX_PLATFORM_LINUX_

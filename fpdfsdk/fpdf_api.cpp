@@ -11,7 +11,7 @@
 #include <algorithm>
 
 #include "core/fpdfapi/cpdf_modulemgr.h"
-#include "core/fpdfapi/cpdf_pagerendercontext.h"
+#include "core/fpdfapi/page/cpdf_pagerendercontext.h"
 #include "core/fpdfapi/page/cpdf_page.h"
 #include "core/fpdfapi/page/cpdf_pageobject.h"
 #include "core/fpdfapi/page/cpdf_textobject.h"
@@ -503,16 +503,16 @@ void FPDF_ExtractImageData(CPDF_Page* pPage, CPDF_ImageObject* imgObj, std::vect
     switch (format) {
         case FXDIB_8bppRgb:
         case FXDIB_8bppMask:
-            image_diff_png::EncodeGrayPNG(buffer, width, height, stride, &png_encoding);
+            png_encoding = image_diff_png::EncodeGrayPNG(buffer, width, height, stride);
             break;
         case FXDIB_Rgb:
-            image_diff_png::EncodeBGRPNG(buffer, width, height, stride, &png_encoding);
+            png_encoding = image_diff_png::EncodeBGRPNG(buffer, width, height, stride);
             break;
         case FXDIB_Rgb32:
-            image_diff_png::EncodeBGRAPNG(buffer, width, height, stride, true, &png_encoding);
+            png_encoding = image_diff_png::EncodeBGRAPNG(buffer, width, height, stride, true);
             break;
         case FXDIB_Argb:
-            image_diff_png::EncodeBGRAPNG(buffer, width, height, stride, false, &png_encoding);
+            png_encoding = image_diff_png::EncodeBGRAPNG(buffer, width, height, stride, false);
             break;
         default:
             fprintf(stderr, "Image object has a bitmap of unknown format.\n");
@@ -1052,7 +1052,8 @@ bool WriteToPng(FPDF_STRING path,
 
     std::vector<unsigned char> png_encoding;
     const auto* buffer = static_cast<const unsigned char*>(buffer_void);
-    if (!image_diff_png::EncodeBGRAPNG(buffer, width, height, stride, false, &png_encoding)) {
+    png_encoding = image_diff_png::EncodeBGRAPNG(buffer, width, height, stride, false);
+    if (png_encoding.empty()) {
         fprintf(stderr, "Failed to convert bitmap to PNG\n");
         return false;
     }
@@ -1082,7 +1083,8 @@ bool GetPngData(std::vector<unsigned char>& png_encoding,
     }
 
     const auto* buffer = static_cast<const unsigned char*>(buffer_void);
-    if (!image_diff_png::EncodeBGRAPNG(buffer, width, height, stride, false, &png_encoding)) {
+    png_encoding = image_diff_png::EncodeBGRAPNG(buffer, width, height, stride, false);
+    if (png_encoding.empty()) {
         fprintf(stderr, "Failed to convert bitmap to PNG\n");
         return false;
     }

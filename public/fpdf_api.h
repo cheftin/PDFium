@@ -231,6 +231,9 @@ FPDF_ExtractPageImageResources(FPDF_PAGE page, uint32_t& length);
 FPDF_EXPORT void FPDF_CALLCONV
 FPDF_GetSystemFonts(std::map<std::string, std::string>&);
 
+FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
+FPDF_CreatePDFDocumentFromImages(std::vector<std::string>& images_path, std::vector<int>& pages_width, std::vector<int>& pages_height, const char* file_path);
+
 #ifdef __cplusplus
 }
 #endif

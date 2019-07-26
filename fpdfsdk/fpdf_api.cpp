@@ -48,6 +48,7 @@
 #include "core/fpdfapi/render/cpdf_renderstatus.h"
 #include "core/fxge/cfx_defaultrenderdevice.h"
 #include "core/fpdfapi/render/cpdf_imagerenderer.h"
+#include "testing/utils/file_util.h"
 
 #if _FX_PLATFORM_ != _FX_PLATFORM_WINDOWS_
 #include <cstring>
@@ -113,6 +114,32 @@ FPDF_EXPORT _FPDF_BOOKMARKS_ITEM_::_FPDF_BOOKMARKS_ITEM_() = default;
 FPDF_EXPORT _FPDF_BOOKMARKS_ITEM_::~_FPDF_BOOKMARKS_ITEM_() = default;
 FPDF_EXPORT _FPDF_BOOKMARKS_ITEM_::_FPDF_BOOKMARKS_ITEM_(const _FPDF_BOOKMARKS_ITEM_& other) = default;
 FPDF_EXPORT _FPDF_BOOKMARKS_ITEM_& _FPDF_BOOKMARKS_ITEM_::operator=(const _FPDF_BOOKMARKS_ITEM_& other) = default;
+
+class FileAccess final : public FPDF_FILEACCESS {
+  public:
+    explicit FileAccess(const std::string& file_name) {
+        file_contents_ = GetFileContents(file_name.c_str(), &file_length_);
+        if (!file_contents_)
+            return;
+
+        m_FileLen = static_cast<unsigned long>(file_length_);
+        m_GetBlock = SGetBlock;
+        m_Param = this;
+    }
+
+  private:
+    int GetBlockImpl(unsigned long pos, unsigned char* pBuf, unsigned long size) {
+        memcpy(pBuf, file_contents_.get() + pos, size);
+        return size;
+    }
+
+    static int SGetBlock(void* param, unsigned long pos, unsigned char* pBuf, unsigned long size) {
+        return static_cast<FileAccess*>(param)->GetBlockImpl(pos, pBuf, size);
+    }
+
+    size_t file_length_;
+    std::unique_ptr<char, pdfium::FreeDeleter> file_contents_;
+};
 
 typedef struct _FPDF_PROCESS_FORM_OBJ_PARAM {
     CPDF_Page* pPage = nullptr;
@@ -1325,4 +1352,62 @@ FPDF_EXPORT
 std::string FPDF_GetGlobalOpaqueData(FPDF_DOCUMENT document, std::string key) {
     key = "__GLOBAL__::" + key;
     return FPDF_GetPageOpaqueData(document, 0, key);
+}
+
+FPDF_EXPORT
+FPDF_BOOL FPDF_CreatePDFDocumentFromImages(std::vector<std::string>& images_path,
+                                           std::vector<int>& pages_width,
+                                           std::vector<int>& pages_height,
+                                           const char* file_path)
+{
+    if (file_path == nullptr || images_path.empty() || pages_width.empty() || pages_height.empty())
+        return false;
+    FPDF_DOCUMENT new_document = FPDF_CreateNewDocument();
+    if (new_document == nullptr)
+        return false;
+    size_t page_counts = images_path.size();
+    FileAccess** files = new FileAccess* [page_counts];
+    if (files == nullptr)
+        return false;
+    FPDF_BOOL ret = false;
+    size_t i = 0;
+    for (; i < page_counts; ++i) {
+        files[i] = new FileAccess(images_path[i]);
+    }
+    i = 0;
+    for (; i < page_counts; ++i) {
+        FPDF_PAGE new_page = FPDFPage_New(new_document, i, pages_width[i], pages_height[i]);
+        if (new_page == nullptr)
+            break;
+        FPDF_PAGEOBJECT image_obj = FPDFPageObj_NewImageObj(new_document);
+        if (image_obj == nullptr) {
+            FPDF_ClosePage(new_page);
+            break;
+        }
+        FPDF_BOOL load_ret = FPDFImageObj_LoadJpegFile(&new_page, 1, image_obj, files[i]);
+        if (load_ret) {
+            FPDFPage_InsertObject(new_page, image_obj);
+            FPDFPageObj_Transform(image_obj, pages_width[i], 0, 0, pages_height[i], 0, 0);
+            FPDFPage_GenerateContent(new_page);
+        }
+        FPDF_ClosePage(new_page);
+        if (!load_ret)
+            break;
+    }
+    if (i == page_counts) {
+        FPDF_SaveDocument(new_document, file_path);
+        ret = true;
+    }
+
+    i = 0;
+    for (; i < page_counts; ++i) {
+        if (files[i] != nullptr) {
+            delete files[i];
+            files[i] = nullptr;
+        }
+    }
+    delete [] files;
+    files = nullptr;
+    FPDF_CloseDocument(new_document);
+    return ret;
 }

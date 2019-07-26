@@ -209,6 +209,7 @@ component("pdfium") {
     "third_party:pdfium_base",
     "third_party:skia_shared",
     ":image_diff",
+    ":file_util",
   ]
 
   public_deps = [
@@ -260,6 +261,14 @@ jumbo_static_library("image_diff") {
   deps = [
     "third_party:png",
   ]
+}
+
+jumbo_static_library("file_util") {
+  sources = [
+    "testing/utils/file_util.cpp",
+    "testing/utils/file_util.h",
+  ]
+  configs += [ ":pdfium_core_config" ]
 }
 
 # Targets below this are only visible within this file (and to the

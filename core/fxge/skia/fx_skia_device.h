@@ -15,6 +15,7 @@
 
 class CFX_ClipRgn;
 class SkCanvas;
+class SkDynamicMemoryWStream;
 class SkMatrix;
 class SkPaint;
 class SkPath;
@@ -32,6 +33,7 @@ class CFX_SkiaDeviceDriver final : public RenderDeviceDriverIface {
 #ifdef _SKIA_SUPPORT_
   explicit CFX_SkiaDeviceDriver(SkPictureRecorder* recorder);
   CFX_SkiaDeviceDriver(int size_x, int size_y);
+  CFX_SkiaDeviceDriver(int size_x, int size_y, SkDynamicMemoryWStream* stream);
 #endif
   ~CFX_SkiaDeviceDriver() override;
 
@@ -175,6 +177,7 @@ class CFX_SkiaDeviceDriver final : public RenderDeviceDriverIface {
   SkCanvas* m_pCanvas;
   SkPictureRecorder* const m_pRecorder;
   std::unique_ptr<SkiaState> m_pCache;
+  SkDynamicMemoryWStream *m_pSVGStream;
 #ifdef _SKIA_SUPPORT_PATHS_
   std::unique_ptr<CFX_ClipRgn> m_pClipRgn;
   std::vector<std::unique_ptr<CFX_ClipRgn>> m_StateStack;

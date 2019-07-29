@@ -715,6 +715,33 @@ FPDF_EXPORT FPDF_RECORDER FPDF_CALLCONV FPDF_RenderPageSkp(FPDF_PAGE page,
   pPage->SetRenderContext(nullptr);
   return recorder;
 }
+
+FPDF_EXPORT FPDF_SVGSTREAM FPDF_CALLCONV FPDF_RenderPageSVG(FPDF_PAGE page,
+                                                            int size_x,
+                                                            int size_y,
+                                                            size_t* text_length) {
+  CPDF_Page* pPage = CPDFPageFromFPDFPage(page);
+  if (!pPage)
+    return nullptr;
+
+  CPDF_PageRenderContext* pContext = new CPDF_PageRenderContext;
+  pPage->SetRenderContext(pdfium::WrapUnique(pContext));
+  CFX_DefaultRenderDevice* skDevice = new CFX_DefaultRenderDevice;
+  SkDynamicMemoryWStream* stream = skDevice->CreateSVGStream(size_x, size_y);
+  pContext->m_pDevice.reset(skDevice);
+  RenderPageWithContext(pContext, page, 0, 0, size_x, size_y, 0, 0, true,
+                        nullptr);
+  pPage->SetRenderContext(nullptr);
+  CFX_DefaultRenderDevice::SVGStreamToString(stream, nullptr, text_length);
+  return stream;
+}
+
+FPDF_EXPORT void FPDF_CALLCONV FPDF_SVGStreamMoveTo(FPDF_SVGSTREAM stream,
+                                                    void* dest,
+                                                    size_t text_length) {
+  CFX_DefaultRenderDevice::SVGStreamToString(
+      (SkDynamicMemoryWStream*)stream, dest, &text_length);
+}
 #endif  // _SKIA_SUPPORT_
 
 FPDF_EXPORT void FPDF_CALLCONV FPDF_ClosePage(FPDF_PAGE page) {

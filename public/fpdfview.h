@@ -53,6 +53,7 @@ typedef struct fpdf_pageobjectmark_t__* FPDF_PAGEOBJECTMARK;
 typedef struct fpdf_pagerange_t__* FPDF_PAGERANGE;
 typedef const struct fpdf_pathsegment_t* FPDF_PATHSEGMENT;
 typedef void* FPDF_RECORDER;  // Passed into skia.
+typedef void* FPDF_SVGSTREAM;  // Passed into skia.
 typedef struct fpdf_schhandle_t__* FPDF_SCHHANDLE;
 typedef struct fpdf_structelement_t__* FPDF_STRUCTELEMENT;
 typedef struct fpdf_structtree_t__* FPDF_STRUCTTREE;
@@ -753,6 +754,14 @@ FPDF_RenderPageBitmapWithMatrix(FPDF_BITMAP bitmap,
 FPDF_EXPORT FPDF_RECORDER FPDF_CALLCONV FPDF_RenderPageSkp(FPDF_PAGE page,
                                                            int size_x,
                                                            int size_y);
+
+FPDF_EXPORT FPDF_SVGSTREAM FPDF_CALLCONV FPDF_RenderPageSVG(FPDF_PAGE page,
+                                                            int size_x,
+                                                            int size_y,
+                                                            size_t* text_length);
+FPDF_EXPORT void FPDF_CALLCONV FPDF_SVGStreamMoveTo(FPDF_SVGSTREAM stream,
+                                                    void* dest,
+                                                    size_t text_length);
 #endif
 
 // Function: FPDF_ClosePage

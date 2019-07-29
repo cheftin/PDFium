@@ -47,6 +47,8 @@
 #include "third_party/skia/include/effects/SkDashPathEffect.h"
 #include "third_party/skia/include/effects/SkGradientShader.h"
 #include "third_party/skia/include/pathops/SkPathOps.h"
+#include "third_party/skia/include/svg/SkSVGCanvas.h"
+#include "third_party/skia/include/core/SkStream.h"
 
 #ifdef _SKIA_SUPPORT_PATHS_
 #include "core/fxge/cfx_cliprgn.h"
@@ -1532,6 +1534,7 @@ CFX_SkiaDeviceDriver::CFX_SkiaDeviceDriver(
       m_pBackdropBitmap(pBackdropBitmap),
       m_pRecorder(nullptr),
       m_pCache(new SkiaState(this)),
+      m_pSVGStream(nullptr),
 #ifdef _SKIA_SUPPORT_PATHS_
       m_pClipRgn(nullptr),
       m_FillFlags(0),
@@ -1554,6 +1557,7 @@ CFX_SkiaDeviceDriver::CFX_SkiaDeviceDriver(int size_x, int size_y)
       m_pBackdropBitmap(nullptr),
       m_pRecorder(new SkPictureRecorder),
       m_pCache(new SkiaState(this)),
+      m_pSVGStream(nullptr),
       m_bGroupKnockout(false) {
   m_pRecorder->beginRecording(SkIntToScalar(size_x), SkIntToScalar(size_y));
   m_pCanvas = m_pRecorder->getRecordingCanvas();
@@ -1564,8 +1568,25 @@ CFX_SkiaDeviceDriver::CFX_SkiaDeviceDriver(SkPictureRecorder* recorder)
       m_pBackdropBitmap(nullptr),
       m_pRecorder(recorder),
       m_pCache(new SkiaState(this)),
+      m_pSVGStream(nullptr),
       m_bGroupKnockout(false) {
   m_pCanvas = m_pRecorder->getRecordingCanvas();
+}
+
+CFX_SkiaDeviceDriver::CFX_SkiaDeviceDriver(
+    int size_x,
+    int size_y,
+    SkDynamicMemoryWStream* stream)
+    : m_pBitmap(nullptr),
+      m_pBackdropBitmap(nullptr),
+      m_pRecorder(nullptr),
+      m_pCache(new SkiaState(this)),
+      m_pSVGStream(stream),
+      m_bGroupKnockout(false) {
+  SkRect bounds = SkRect::MakeIWH(size_x, size_y);
+  std::unique_ptr<SkCanvas> svgCanvas = SkSVGCanvas::Make(
+      bounds, m_pSVGStream, SkSVGCanvas::kConvertTextToPaths_Flag);
+  m_pCanvas = svgCanvas.release();
 }
 #endif  // _SKIA_SUPPORT_
 
@@ -2600,6 +2621,26 @@ SkPictureRecorder* CFX_DefaultRenderDevice::CreateRecorder(int size_x,
   CFX_SkiaDeviceDriver* skDriver = new CFX_SkiaDeviceDriver(size_x, size_y);
   SetDeviceDriver(pdfium::WrapUnique(skDriver));
   return skDriver->GetRecorder();
+}
+
+SkDynamicMemoryWStream* CFX_DefaultRenderDevice::CreateSVGStream(
+    int size_x,
+    int size_y) {
+  SkDynamicMemoryWStream *stream = new SkDynamicMemoryWStream;
+  CFX_SkiaDeviceDriver* skDriver = new CFX_SkiaDeviceDriver(
+      size_x, size_y, stream);
+  SetDeviceDriver(pdfium::WrapUnique(skDriver));
+  return stream;
+}
+
+void CFX_DefaultRenderDevice::SVGStreamToString(
+    SkDynamicMemoryWStream* stream, void* dest, size_t* length) {
+  if (dest == nullptr) {
+    *length = stream->bytesWritten();
+    return;
+  }
+  stream->read(dest, 0, *length);
+  delete stream;
 }
 #endif  // _SKIA_SUPPORT_
 

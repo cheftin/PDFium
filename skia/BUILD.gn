@@ -23,6 +23,9 @@ config("skia_config") {
   include_dirs = [ "//third_party/skia" ]
 
   defines = [ "SK_USER_CONFIG_HEADER=\"../../skia/config/SkUserConfig.h\"" ]
+  defines += [
+    "SK_HAS_PNG_LIBRARY",
+  ]
 
   if (is_win) {
     defines += [ "SK_FREETYPE_MINIMUM_RUNTIME_VERSION=(((FREETYPE_MAJOR) * 0x01000000) | ((FREETYPE_MINOR) * 0x00010000) | ((FREETYPE_PATCH) * 0x00000100))" ]
@@ -196,6 +199,34 @@ component("skia") {
     "//third_party/skia/src/ports/SkFontMgr_custom_empty.cpp",
     "//third_party/skia/src/ports/SkFontMgr_custom_empty_factory.cpp",
     "//third_party/skia/src/ports/SkMemory_malloc.cpp",
+
+    #svg
+    "//third_party/skia/src/svg/SkSVGCanvas.cpp",
+    "//third_party/skia/src/svg/SkSVGDevice.cpp",
+    "//third_party/skia/src/xml/SkDOM.cpp",
+    "//third_party/skia/src/xml/SkXMLParser.cpp",
+    "//third_party/skia/src/xml/SkXMLWriter.cpp",
+    "//third_party/skia/src/codec/SkBmpBaseCodec.cpp",
+    "//third_party/skia/src/codec/SkBmpCodec.cpp",
+    "//third_party/skia/src/codec/SkBmpMaskCodec.cpp",
+    "//third_party/skia/src/codec/SkBmpRLECodec.cpp",
+    "//third_party/skia/src/codec/SkBmpStandardCodec.cpp",
+    "//third_party/skia/src/codec/SkCodec.cpp",
+    "//third_party/skia/src/codec/SkColorTable.cpp",
+    "//third_party/skia/src/codec/SkEncodedInfo.cpp",
+    "//third_party/skia/src/codec/SkGifCodec.cpp",
+    "//third_party/skia/src/codec/SkIcoCodec.cpp",
+    "//third_party/skia/src/codec/SkJpegCodec.cpp",
+    "//third_party/skia/src/codec/SkJpegDecoderMgr.cpp",
+    "//third_party/skia/src/codec/SkJpegUtility.cpp",
+    "//third_party/skia/src/codec/SkMaskSwizzler.cpp",
+    "//third_party/skia/src/codec/SkPngCodec.cpp",
+    "//third_party/skia/src/codec/SkSampler.cpp",
+    "//third_party/skia/src/codec/SkStreamBuffer.cpp",
+    "//third_party/skia/src/codec/SkSwizzler.cpp",
+    "//third_party/skia/src/codec/SkWbmpCodec.cpp",
+    "//third_party/skia/src/images/SkPngEncoder.cpp",
+    "//third_party/skia/third_party/gif/SkGifImageReader.cpp",
   ]
 
   # This and skia_opts are really the same conceptual target so share headers.
@@ -216,7 +247,6 @@ component("skia") {
     "//third_party/skia/src/utils/SkCamera.cpp",
     "//third_party/skia/src/utils/SkFrontBufferedStream.cpp",
     "//third_party/skia/src/utils/SkInterpolator.cpp",
-    "//third_party/skia/src/utils/SkParsePath.cpp",
   ]
 
   if (is_win) {

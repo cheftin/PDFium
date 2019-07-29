@@ -11,6 +11,7 @@
 #include "core/fxge/fx_dib.h"
 
 class SkPictureRecorder;
+class SkDynamicMemoryWStream;
 
 class CFX_DefaultRenderDevice final : public CFX_RenderDevice {
  public:
@@ -30,6 +31,10 @@ class CFX_DefaultRenderDevice final : public CFX_RenderDevice {
   bool AttachRecorder(SkPictureRecorder* recorder);
   void Clear(uint32_t color);
   SkPictureRecorder* CreateRecorder(int size_x, int size_y);
+  SkDynamicMemoryWStream* CreateSVGStream(int size_x, int size_y);
+  static void SVGStreamToString(SkDynamicMemoryWStream* stream,
+                                void* dest,
+                                size_t *length);
   void DebugVerifyBitmapIsPreMultiplied() const override;
   bool SetBitsWithMask(const RetainPtr<CFX_DIBBase>& pBitmap,
                        const RetainPtr<CFX_DIBBase>& pMask,

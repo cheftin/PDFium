@@ -163,6 +163,7 @@ class CFX_SkiaDeviceDriver final : public RenderDeviceDriverIface {
   void Dump() const;
 
   bool GetGroupKnockout() const { return m_bGroupKnockout; }
+  SkDynamicMemoryWStream* GetSVGStream() const { return m_pSVGStream; }
 
 #ifdef _SKIA_SUPPORT_PATHS_
   const CFX_ClipRgn* clip_region() const { return m_pClipRgn.get(); }

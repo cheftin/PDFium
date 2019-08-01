@@ -1438,6 +1438,8 @@ bool CPDF_RenderStatus::ProcessTransparency(CPDF_PageObject* pPageObj,
                                             const CFX_Matrix& mtObj2Device) {
 #if defined _SKIA_SUPPORT_
   DebugVerifyDeviceIsPreMultiplied();
+  if (((CFX_SkiaDeviceDriver*)m_pDevice->GetDeviceDriver())->GetSVGStream() != nullptr)
+    return false;
 #endif
   BlendMode blend_type = pPageObj->m_GeneralState.GetBlendType();
   CPDF_Dictionary* pSMaskDict =

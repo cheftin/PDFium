@@ -1443,7 +1443,7 @@ Optional<CPDF_TextPage::CharInfo> CPDF_TextPage::GenerateCharInfo(
   }
 
   float fFontSize = pPrevCharInfo->m_pTextObj
-                        ? pPrevCharInfo->m_pTextObj->GetFontSize()
+                        ? pPrevCharInfo->m_pTextObj->GetFontSize() * pPrevCharInfo->m_Matrix.GetXUnit()
                         : pPrevCharInfo->m_CharBox.Height();
   if (!fFontSize)
     fFontSize = kDefaultFontSize;

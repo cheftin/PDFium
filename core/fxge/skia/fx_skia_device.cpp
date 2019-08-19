@@ -2567,7 +2567,17 @@ bool CFX_SkiaDeviceDriver::DrawBitsWithMask(
     paint.setShader(
         SkShaders::Blend(SkBlendMode::kSrcIn, skMaskShader, skSrcShader));
     SkRect r = {0, 0, SkIntToScalar(srcWidth), SkIntToScalar(srcHeight)};
-    m_pCanvas->drawRect(r, paint);
+
+    if (m_pBitmap != nullptr) {
+      m_pCanvas->drawRect(r, paint);
+    } else {
+      SkBitmap maskedImage;
+      maskedImage.allocPixels(skBitmap.info());
+      SkCanvas canvas(maskedImage);
+      canvas.drawRect(r, paint);
+      // can.readPixels(maskedImage, 0, 0);
+      m_pCanvas->drawBitmap(maskedImage, 0, 0);
+    }
   }
   DebugValidate(m_pBitmap, m_pBackdropBitmap);
   return true;
@@ -2580,7 +2590,7 @@ bool CFX_SkiaDeviceDriver::SetBitsWithMask(
     int dest_top,
     int bitmap_alpha,
     BlendMode blend_type) {
-  if (!m_pBitmap || !m_pBitmap->GetBuffer())
+  if ((!m_pBitmap || !m_pBitmap->GetBuffer()) && !m_pSVGStream)
     return true;
 
   CFX_Matrix m = CFX_RenderDevice::GetFlipMatrix(
@@ -2712,6 +2722,7 @@ bool CFX_DefaultRenderDevice::SetBitsWithMask(
 #endif  // _SKIA_SUPPORT_
 
 void CFX_DIBBase::DebugVerifyBitmapIsPreMultiplied(void* opt) const {
+#if false
 #ifdef SK_DEBUG
   SkASSERT(32 == GetBPP());
   const uint32_t* buffer = (const uint32_t*)(opt ? opt : GetBuffer());
@@ -2732,4 +2743,5 @@ void CFX_DIBBase::DebugVerifyBitmapIsPreMultiplied(void* opt) const {
     }
   }
 #endif  // SK_DEBUG
+#endif  // false
 }

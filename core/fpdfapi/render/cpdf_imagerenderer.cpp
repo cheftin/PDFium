@@ -125,14 +125,8 @@ bool CPDF_ImageRenderer::StartRenderDIBBase() {
   else if (m_pImageObject->GetImage()->IsInterpol())
     m_ResampleOptions.bInterpolateBilinear = true;
 
-#ifdef _SKIA_SUPPORT_
-  auto* driver = (CFX_SkiaDeviceDriver*)m_pRenderStatus->GetRenderDevice()->GetDeviceDriver();
-  if (m_Loader.GetMask() && driver->GetSVGStream() == nullptr) // not svg
-    return DrawMaskedImage();
-#else
   if (m_Loader.GetMask())
     return DrawMaskedImage();
-#endif
 
   if (m_bPatternColor)
     return DrawPatternImage();

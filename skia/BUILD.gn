@@ -220,6 +220,7 @@ component("skia") {
     "//third_party/skia/src/codec/SkJpegDecoderMgr.cpp",
     "//third_party/skia/src/codec/SkJpegUtility.cpp",
     "//third_party/skia/src/codec/SkMaskSwizzler.cpp",
+    "//third_party/skia/src/codec/SkParseEncodedOrigin.cpp",
     "//third_party/skia/src/codec/SkPngCodec.cpp",
     "//third_party/skia/src/codec/SkSampler.cpp",
     "//third_party/skia/src/codec/SkStreamBuffer.cpp",

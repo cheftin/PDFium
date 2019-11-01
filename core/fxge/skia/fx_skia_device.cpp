@@ -854,7 +854,28 @@ class SkiaState {
     return oneAtATime ? false : useRSXform;
   }
 
+  /*
+    DrawText is split into two functions, DrawText and
+    DrawTextSegment, to avoid generate big paths from long text while
+    rendering to SVG. Big paths get poor rendering in Chromium.
+   */
   bool DrawText(int nChars,
+                const TextCharPos* pCharPos,
+                CFX_Font* pFont,
+                const CFX_Matrix& matrix,
+                float font_size,
+                uint32_t color) {
+    int start = 0, range = 5;
+    while (start < nChars) {
+      if (range > nChars - start) range = nChars - start;
+      DrawTextSegment(range, pCharPos + start, pFont, matrix, font_size, color);
+      Flush();
+      start += range;
+    }
+    return true;
+  }
+
+  bool DrawTextSegment(int nChars,
                 const TextCharPos* pCharPos,
                 CFX_Font* pFont,
                 const CFX_Matrix& matrix,

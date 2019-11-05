@@ -1249,7 +1249,8 @@ bool CPDF_RenderStatus::ProcessPath(CPDF_PathObject* pPathObj,
                                     const CFX_Matrix& mtObj2Device) {
   int FillType = pPathObj->filltype();
   bool bStroke = pPathObj->stroke();
-  ProcessPathPattern(pPathObj, mtObj2Device, &FillType, &bStroke);
+  // temporarily disable path pattern
+  // ProcessPathPattern(pPathObj, mtObj2Device, &FillType, &bStroke);
   if (FillType == 0 && !bStroke)
     return true;
 

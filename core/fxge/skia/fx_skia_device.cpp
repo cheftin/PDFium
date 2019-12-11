@@ -2552,6 +2552,25 @@ void CFX_DIBitmap::UnPreMultiply() {
 #endif  // _SKIA_SUPPORT_PATHS_
 
 #ifdef _SKIA_SUPPORT_
+bool CFX_SkiaDeviceDriver::DrawDIBBase(const RetainPtr<CFX_DIBBase>& pSrc,
+                                       const CFX_Matrix& matrix) {
+  std::unique_ptr<uint8_t, FxFreeDeleter> src8Storage;
+  std::unique_ptr<uint32_t, FxFreeDeleter> src32Storage;
+  int srcWidth, srcHeight;
+  SkBitmap skBitmap;
+
+  if (!Upsample(pSrc, src8Storage, src32Storage, &skBitmap, &srcWidth,
+                &srcHeight, true)) {
+    return false;
+  }
+
+  SkMatrix skMatrix;
+  SetBitmapMatrix(matrix, srcWidth, srcHeight, &skMatrix);
+  m_pCanvas->concat(skMatrix);
+  m_pCanvas->drawBitmap(skBitmap, 0, 0);
+  return true;
+}
+
 bool CFX_SkiaDeviceDriver::DrawBitsWithMask(
     const RetainPtr<CFX_DIBBase>& pSource,
     const RetainPtr<CFX_DIBBase>& pMask,

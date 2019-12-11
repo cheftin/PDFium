@@ -87,6 +87,8 @@ class CFX_SkiaDeviceDriver final : public RenderDeviceDriverIface {
 
   RetainPtr<CFX_DIBitmap> GetBackDrop() override;
 
+  bool DrawDIBBase(const RetainPtr<CFX_DIBBase>& pSrc,
+                   const CFX_Matrix& matrix);
   bool SetDIBits(const RetainPtr<CFX_DIBBase>& pBitmap,
                  uint32_t color,
                  const FX_RECT& src_rect,

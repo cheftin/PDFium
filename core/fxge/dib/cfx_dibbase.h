@@ -89,6 +89,7 @@ class CFX_DIBBase : public Retainable {
   RetainPtr<CFX_DIBitmap> FlipImage(bool bXFlip, bool bYFlip) const;
 
   RetainPtr<CFX_DIBitmap> CloneAlphaMask() const;
+  RetainPtr<CFX_DIBitmap> InvertMask();
 
   // Copies into internally-owned mask.
   bool SetAlphaMask(const RetainPtr<CFX_DIBBase>& pAlphaMask,

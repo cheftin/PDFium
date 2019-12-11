@@ -359,13 +359,23 @@ bool CPDF_ImageRenderer::DrawMaskedImage() {
 #else
   bitmap_device2.GetBitmap()->Clear(0);
 #endif
-  CalculateDrawImage(&bitmap_device1, &bitmap_device2, m_Loader.GetMask(),
-                     new_matrix, rect);
+
+  // CalculateDrawImage(&bitmap_device1, &bitmap_device2, m_Loader.GetMask(),
+  //                    new_matrix, rect);
+
 #ifdef _SKIA_SUPPORT_
+  auto* skia_driver = (CFX_SkiaDeviceDriver*)bitmap_device2.GetDeviceDriver();
+  if (m_Loader.GetMask()->IsAlphaMask())
+    skia_driver->DrawDIBBase(m_Loader.GetMask(), new_matrix);
+  else
+    skia_driver->DrawDIBBase(m_Loader.GetMask()->InvertMask(), new_matrix);
+
   m_pRenderStatus->GetRenderDevice()->SetBitsWithMask(
       bitmap_device1.GetBitmap(), bitmap_device2.GetBitmap(), rect.left,
       rect.top, m_BitmapAlpha, m_BlendType);
 #else
+  CalculateDrawImage(&bitmap_device1, &bitmap_device2, m_Loader.GetMask(),
+    new_matrix, rect);
   bitmap_device2.GetBitmap()->ConvertFormat(FXDIB_8bppMask);
   bitmap_device1.GetBitmap()->MultiplyAlpha(bitmap_device2.GetBitmap());
   if (m_BitmapAlpha < 255)

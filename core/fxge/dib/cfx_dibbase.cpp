@@ -118,6 +118,27 @@ void ConvertBuffer_1bppMask2Gray(uint8_t* dest_buf,
   }
 }
 
+void ConvertBuffer_1bppInvertMask(uint8_t* dest_buf,
+                                  int dest_pitch,
+                                  int width,
+                                  int height,
+                                  const RetainPtr<CFX_DIBBase>& pSrcBitmap,
+                                  int src_left,
+                                  int src_top) {
+  static constexpr uint8_t kSetGray = 0xff;
+  static constexpr uint8_t kResetGray = 0x00;
+  for (int row = 0; row < height; ++row) {
+    uint8_t* dest_scan = dest_buf + row * dest_pitch;
+    memset(dest_scan, kResetGray, width);
+    const uint8_t* src_scan = pSrcBitmap->GetScanline(src_top + row);
+    for (int col = src_left; col < src_left + width; ++col) {
+      if (!(src_scan[col / 8] & (1 << (7 - col % 8))))
+        *dest_scan = kSetGray;
+      ++dest_scan;
+    }
+  }
+}
+
 void ConvertBuffer_8bppMask2Gray(uint8_t* dest_buf,
                                  int dest_pitch,
                                  int width,
@@ -129,6 +150,23 @@ void ConvertBuffer_8bppMask2Gray(uint8_t* dest_buf,
     uint8_t* dest_scan = dest_buf + row * dest_pitch;
     const uint8_t* src_scan = pSrcBitmap->GetScanline(src_top + row) + src_left;
     memcpy(dest_scan, src_scan, width);
+  }
+}
+
+void ConvertBuffer_8bppInvertMask(uint8_t* dest_buf,
+                                  int dest_pitch,
+                                  int width,
+                                  int height,
+                                  const RetainPtr<CFX_DIBBase>& pSrcBitmap,
+                                  int src_left,
+                                  int src_top) {
+  for (int row = 0; row < height; ++row) {
+    uint8_t* dest_scan = dest_buf + row * dest_pitch;
+    const uint8_t* src_scan = pSrcBitmap->GetScanline(src_top + row);
+    for (int col = src_left; col < src_left + width; ++col) {
+      *dest_scan = 0xff & (~src_scan[col]);
+      ++dest_scan;
+    }
   }
 }
 
@@ -954,6 +992,35 @@ RetainPtr<CFX_DIBitmap> CFX_DIBBase::CloneAlphaMask() const {
     }
   }
   return pMask;
+}
+
+RetainPtr<CFX_DIBitmap> CFX_DIBBase::InvertMask() {
+  FXDIB_Format src_format = GetFormat();
+  FXDIB_Format dest_format = FXDIB_8bppMask;
+  if(src_format != FXDIB_1bppRgb && src_format != FXDIB_8bppRgb)
+    return nullptr;
+
+  auto pClone = pdfium::MakeRetain<CFX_DIBitmap>();
+  if (!pClone->Create(m_Width, m_Height, dest_format))
+    return nullptr;
+  RetainPtr<CFX_DIBBase> holder(this);
+
+  switch (src_format) {
+    case FXDIB_1bppRgb: {
+      ConvertBuffer_1bppInvertMask(pClone->GetBuffer(), pClone->GetPitch(),
+        m_Width, m_Height, holder, 0, 0);
+      break;
+    }
+    case FXDIB_8bppRgb: {
+      ConvertBuffer_8bppInvertMask(pClone->GetBuffer(), pClone->GetPitch(),
+        m_Width, m_Height, holder, 0, 0);
+      break;
+    }
+    default:
+      NOTREACHED();
+      return nullptr;
+  }
+  return pClone;
 }
 
 bool CFX_DIBBase::SetAlphaMask(const RetainPtr<CFX_DIBBase>& pAlphaMask,

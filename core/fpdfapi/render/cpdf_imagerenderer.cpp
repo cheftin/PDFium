@@ -364,12 +364,16 @@ bool CPDF_ImageRenderer::DrawMaskedImage() {
   //                    new_matrix, rect);
 
 #ifdef _SKIA_SUPPORT_
-  auto* skia_driver = (CFX_SkiaDeviceDriver*)bitmap_device2.GetDeviceDriver();
-  if (m_Loader.GetMask()->IsAlphaMask())
-    skia_driver->DrawDIBBase(m_Loader.GetMask(), new_matrix);
-  else
-    skia_driver->DrawDIBBase(m_Loader.GetMask()->InvertMask(), new_matrix);
-
+  if (m_Loader.MatteColor() == 0) {
+    CalculateDrawImage(&bitmap_device1, &bitmap_device2, m_Loader.GetMask(),
+      new_matrix, rect);
+  } else {
+    auto* skia_driver = (CFX_SkiaDeviceDriver*)bitmap_device2.GetDeviceDriver();
+    if (m_Loader.GetMask()->IsAlphaMask())
+      skia_driver->DrawDIBBase(m_Loader.GetMask(), new_matrix);
+    else
+      skia_driver->DrawDIBBase(m_Loader.GetMask()->InvertMask(), new_matrix);
+  }
   m_pRenderStatus->GetRenderDevice()->SetBitsWithMask(
       bitmap_device1.GetBitmap(), bitmap_device2.GetBitmap(), rect.left,
       rect.top, m_BitmapAlpha, m_BlendType);

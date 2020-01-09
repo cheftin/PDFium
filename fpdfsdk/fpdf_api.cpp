@@ -141,6 +141,9 @@ class FileAccess final : public FPDF_FILEACCESS {
     std::unique_ptr<char, pdfium::FreeDeleter> file_contents_;
 };
 
+typedef std::vector<int> FPDF_TEXT_OBJ_CHARS_INDEX;
+typedef std::map<CPDF_TextObject*, FPDF_TEXT_OBJ_CHARS_INDEX> FPDF_TEXT_OBJ_CHARS;
+
 typedef struct _FPDF_PROCESS_FORM_OBJ_PARAM {
     CPDF_Page* pPage = nullptr;
     CPDF_TextPage* pTextPage = nullptr;
@@ -150,6 +153,7 @@ typedef struct _FPDF_PROCESS_FORM_OBJ_PARAM {
     std::vector<int>* pImagesIndex = nullptr;
     FPDF_PAGE_ITEM* pPageObj = nullptr;
     std::vector<std::vector<int>>* pTextsIndexVec = nullptr;
+    FPDF_TEXT_OBJ_CHARS* pTextObjChars = nullptr;
 } FPDF_PROCESS_FORM_OBJ_PARAM;
 
 BufferFileWrite::BufferFileWrite(const std::string &file) : _file(file, std::ios::out | std::ios::binary) {
@@ -710,21 +714,19 @@ bool FPDF_ProcessTextObject(
     FPDF_PAGE_ITEM& pageObj,
     CPDF_TextObject* textObj,
     std::vector<std::vector<int>>& texts_index_vec,
+    FPDF_TEXT_OBJ_CHARS& text_obj_chars,
     bool saveGlyphs) {
-    if (pPage == nullptr || textPage == nullptr || textObj == nullptr)
+    if (pPage == nullptr || textPage == nullptr || textObj == nullptr || text_obj_chars.count(textObj) == 0)
         return false;
-    UnownedPtr<CPDF_TextObject> curTextObj(textObj);
+
+    FPDF_TEXT_OBJ_CHARS_INDEX& chars_indices = text_obj_chars[textObj];
     wchar_t spHigh = 0;
     bool creat_text_item = true;
-    std::vector<int> index_vec;
-    for (int i = 0; i < textPage->CountChars(); ++i) {
+    for (int &char_idx : chars_indices) {
         FPDF_CHAR_ITEM charItem;
         FPDF_CHAR_INFO charInfo;
         std::string faceName;
-        textPage->GetCharInfo(i, &charInfo);
-        // remove watermark texts
-        if (FPDF_IsWatermarkText(charInfo))
-            continue;
+        textPage->GetCharInfo(char_idx, &charInfo);
         FPDF_GetCharItem(charInfo, charItem, pPage);
         if (charInfo.m_Unicode >= 0xD800 && charInfo.m_Unicode <= 0xDBFF) { // high surrogate
             spHigh = charInfo.m_Unicode;
@@ -737,32 +739,26 @@ bool FPDF_ProcessTextObject(
             }
             spHigh = 0;
         }
-        if (curTextObj == charInfo.m_pTextObj) {
-            index_vec.push_back(i);
-            if (creat_text_item) {
-                FPDF_TEXT_ITEM textItem;
-                FPDF_InitTextItem(textItem, pPage, charInfo);
-                // std::wstring text = textPage->GetTextByObject(charInfo.m_pTextObj ? charInfo.m_pTextObj.Get() : nullptr).c_str();
-                // textItem.text.clear();
-                // textItem.text.reserve(text.size());
-                // std::copy(text.begin(), text.end(), std::back_inserter(textItem.text));
-                textItem.chars.push_back(charItem);
-                pageObj.texts.push_back(textItem);
-                // curTextObj = charInfo.m_pTextObj;
-                faceName = textItem.faceName;
-                creat_text_item = false;
-            } else {
-                FPDF_TEXT_ITEM &textItem = pageObj.texts.back();
-                textItem.chars.push_back(charItem);
-                faceName = textItem.faceName;
-            }
-            if (saveGlyphs) {
-                FPDF_SaveGlyphs(charInfo, charItem, pageObj, faceName);
-            }
+
+        if (creat_text_item) {
+            FPDF_TEXT_ITEM textItem;
+            FPDF_InitTextItem(textItem, pPage, charInfo);
+            textItem.chars.push_back(charItem);
+            pageObj.texts.push_back(textItem);
+            faceName = textItem.faceName;
+            creat_text_item = false;
+        } else {
+            FPDF_TEXT_ITEM &textItem = pageObj.texts.back();
+            textItem.chars.push_back(charItem);
+            faceName = textItem.faceName;
+        }
+        if (saveGlyphs) {
+            FPDF_SaveGlyphs(charInfo, charItem, pageObj, faceName);
         }
     }
-    if (index_vec.size() > 0) {
-        texts_index_vec.push_back(index_vec);
+
+    if (chars_indices.size() > 0) {
+        texts_index_vec.push_back(chars_indices);
         return true;
     }
     return false;
@@ -848,7 +844,7 @@ void FPDF_ProcessFormObject(
     CFX_Matrix curFormMatrix = pFormObj->form_matrix();
     curFormMatrix.Concat(formMatrix);
 
-    for (auto it = pObjectHolder->begin(); it != pObjectHolder->end(); ++it) {
+    for (auto it = pObjectHolder->begin(); it != pObjectHolder->end(); ++it, ++(form_param.objIndex)) {
         CPDF_PageObject* pPageObj = it->get();
         if (!pPageObj)
             continue;
@@ -863,8 +859,8 @@ void FPDF_ProcessFormObject(
         else if (pPageObj->IsForm())
             FPDF_ProcessFormObject(pPageObj->AsForm(), curFormMatrix, paths, images, shadings, form_param);
         else if (pPageObj->IsText()) {
-            if (!FPDF_ProcessTextObject(form_param.pPage, form_param.pTextPage, *(form_param.pPageObj),
-                                        pPageObj->AsText(), *(form_param.pTextsIndexVec),form_param.bSaveGlyphs))
+            if (!FPDF_ProcessTextObject(form_param.pPage, form_param.pTextPage, *(form_param.pPageObj), pPageObj->AsText(),
+                                        *(form_param.pTextsIndexVec), *(form_param.pTextObjChars), form_param.bSaveGlyphs))
                 continue;
             FPDF_TEXT_ITEM &textItem = (form_param.pPageObj)->texts.back();
             textItem.z_index = form_param.objIndex;
@@ -872,6 +868,68 @@ void FPDF_ProcessFormObject(
         // else if (pPageObj->IsShading())
         //     FPDF_ProcessShadingObject(pPageObj->AsShading(), curFormMatrix, shadings);
     }
+}
+
+void FPDF_GenTextObjectChars(CPDF_TextPage* pTextPage, FPDF_TEXT_OBJ_CHARS& text_obj_chars) {
+    if (pTextPage == nullptr)
+        return;
+    for (int i = 0; i < pTextPage->CountChars(); ++i) {
+        FPDF_CHAR_INFO charInfo;
+        pTextPage->GetCharInfo(i, &charInfo);
+        // remove watermark texts
+        if (FPDF_IsWatermarkText(charInfo))
+            continue;
+        CPDF_TextObject* pTextObj = charInfo.m_pTextObj.Get();
+        if (pTextObj == nullptr)
+            continue;
+        if (text_obj_chars.count(pTextObj) == 0) {
+            text_obj_chars[pTextObj] = FPDF_TEXT_OBJ_CHARS_INDEX(1, i);
+            continue;
+        }
+        text_obj_chars[pTextObj].push_back(i);
+    }
+}
+
+inline bool FPDF_IsUnUsedBackgroundText(std::map<std::string, int>& char_counts, unsigned int color_value) {
+    // 0xfff6e0ff(rgba): the color of special background chars
+    // "\xe2\x80\xa2": the utf-8 encode of '•'
+    if (char_counts.size() != 1 || color_value != 0xfff6e0ff || char_counts.count("\xe2\x80\xa2") == 0)
+        return false;
+    return true;
+}
+
+void FPDF_RemoveUnUsedBackgroundText(FPDF_PAGE_ITEM& pageObj) {
+    if (pageObj.texts.empty())
+        return;
+    std::vector<FPDF_TEXT_ITEM>::iterator page_texts_begin = pageObj.texts.begin();
+    std::vector<FPDF_TEXT_ITEM>::iterator erase_end_it = page_texts_begin;
+    for (auto it = page_texts_begin; it != pageObj.texts.end(); ++it) {
+        FPDF_COLOR& text_color = (*it).fillColor;
+        unsigned int text_color_value = text_color.r << 24 | text_color.g << 16 |
+                                        text_color.b << 8 | text_color.a;
+        std::map<std::string, int> char_counts;
+        for (auto& char_item : (*it).chars) {
+            if (char_item.text.compare(" ") == 0 || char_item.text.compare("\r") == 0 ||
+                char_item.text.compare("\n") == 0)
+                continue;
+            if (char_counts.count(char_item.text) == 0) {
+                char_counts.insert({char_item.text, 1});
+            } else {
+                char_counts[char_item.text] += 1;
+            }
+        }
+        if (char_counts.empty())
+            continue;
+
+        if (!FPDF_IsUnUsedBackgroundText(char_counts, text_color_value)) {
+            if (erase_end_it != page_texts_begin)
+                erase_end_it = it;
+            break;
+        }
+        erase_end_it = it;
+    }
+    if (erase_end_it != page_texts_begin)
+        pageObj.texts.erase(page_texts_begin, erase_end_it);
 }
 
 void FPDF_ProcessObject(CPDF_Page* pPage, FPDF_PAGE_ITEM& pageObj, bool saveGlyphs, bool saveImages) {
@@ -887,6 +945,9 @@ void FPDF_ProcessObject(CPDF_Page* pPage, FPDF_PAGE_ITEM& pageObj, bool saveGlyp
     std::vector<int> images_index;
     std::vector<std::vector<int>> texts_index_vec;
 
+    FPDF_TEXT_OBJ_CHARS text_obj_chars;
+    FPDF_GenTextObjectChars(textPage, text_obj_chars);
+
     int obj_index = 0;
     FPDF_PROCESS_FORM_OBJ_PARAM form_obj_param;
     form_obj_param.pPage = pPage;
@@ -897,6 +958,7 @@ void FPDF_ProcessObject(CPDF_Page* pPage, FPDF_PAGE_ITEM& pageObj, bool saveGlyp
     form_obj_param.pImagesIndex = &images_index;
     form_obj_param.pPageObj = &pageObj;
     form_obj_param.pTextsIndexVec = &texts_index_vec;
+    form_obj_param.pTextObjChars = &text_obj_chars;
 
     CFX_Matrix matrix;
     FPDF_GetPageMatrix(pPage, matrix);
@@ -919,10 +981,11 @@ void FPDF_ProcessObject(CPDF_Page* pPage, FPDF_PAGE_ITEM& pageObj, bool saveGlyp
             form_obj_param.objIndex = obj_index;
             FPDF_ProcessFormObject(
                 pObj->AsForm(), matrix, paths, images, shadings, form_obj_param);
+            obj_index = form_obj_param.objIndex - 1;
         }
         else if (pObj->IsText()) {
-            if (!FPDF_ProcessTextObject(
-                    pPage, textPage, pageObj, pObj->AsText(), texts_index_vec, saveGlyphs))
+            if (!FPDF_ProcessTextObject(pPage, textPage, pageObj, pObj->AsText(),
+                                        texts_index_vec, text_obj_chars, saveGlyphs))
                 continue;
             FPDF_TEXT_ITEM &textItem = pageObj.texts.back();
             textItem.z_index = obj_index;
@@ -932,6 +995,7 @@ void FPDF_ProcessObject(CPDF_Page* pPage, FPDF_PAGE_ITEM& pageObj, bool saveGlyp
     }
 
     FPDF_FillPageTexts(pPage, textPage, pageObj, texts_index_vec, saveGlyphs);
+    FPDF_RemoveUnUsedBackgroundText(pageObj);
     obj_index = 0;
     for (CPDF_PathObject* obj : paths) {
         FPDF_PATH_ITEM pathItem;

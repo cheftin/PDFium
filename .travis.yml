@@ -4,7 +4,7 @@ os:
     - osx
 
 # dist: trusty # use gcc 4.8 on linux, but it is not compatible with PDFium
-dist: Xenial # use gcc 5.4 on linux
+dist: xenial # use gcc 5.4 on linux
 osx_image: xcode10.1
 
 notifications:

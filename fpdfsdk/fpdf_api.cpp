@@ -844,7 +844,7 @@ void FPDF_ProcessFormObject(
     CFX_Matrix curFormMatrix = pFormObj->form_matrix();
     curFormMatrix.Concat(formMatrix);
 
-    for (auto it = pObjectHolder->begin(); it != pObjectHolder->end(); ++it, ++(form_param.objIndex)) {
+    for (auto it = pObjectHolder->begin(); it != pObjectHolder->end(); ++it) {
         CPDF_PageObject* pPageObj = it->get();
         if (!pPageObj)
             continue;
@@ -882,11 +882,25 @@ void FPDF_GenTextObjectChars(CPDF_TextPage* pTextPage, FPDF_TEXT_OBJ_CHARS& text
         CPDF_TextObject* pTextObj = charInfo.m_pTextObj.Get();
         if (pTextObj == nullptr)
             continue;
+
+        wchar_t spHigh = 0;
+        if (charInfo.m_Unicode >= 0xD800 && charInfo.m_Unicode <= 0xDBFF) { // high surrogate
+            spHigh = charInfo.m_Unicode;
+            FPDF_CHAR_INFO nextCharInfo;
+            pTextPage->GetCharInfo(i + 1, &nextCharInfo);
+            if (nextCharInfo.m_Unicode < 0xDC00 || nextCharInfo.m_Unicode > 0xDFFF)
+                // not low surrogate
+                continue;
+        }
+
         if (text_obj_chars.count(pTextObj) == 0) {
             text_obj_chars[pTextObj] = FPDF_TEXT_OBJ_CHARS_INDEX(1, i);
-            continue;
+        } else {
+            text_obj_chars[pTextObj].push_back(i);
         }
-        text_obj_chars[pTextObj].push_back(i);
+
+        if (spHigh != 0)
+            text_obj_chars[pTextObj].push_back(++i);
     }
 }
 
@@ -981,7 +995,6 @@ void FPDF_ProcessObject(CPDF_Page* pPage, FPDF_PAGE_ITEM& pageObj, bool saveGlyp
             form_obj_param.objIndex = obj_index;
             FPDF_ProcessFormObject(
                 pObj->AsForm(), matrix, paths, images, shadings, form_obj_param);
-            obj_index = form_obj_param.objIndex - 1;
         }
         else if (pObj->IsText()) {
             if (!FPDF_ProcessTextObject(pPage, textPage, pageObj, pObj->AsText(),

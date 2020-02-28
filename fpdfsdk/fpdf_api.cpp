@@ -49,6 +49,7 @@
 #include "core/fxge/cfx_defaultrenderdevice.h"
 #include "core/fpdfapi/render/cpdf_imagerenderer.h"
 #include "testing/utils/file_util.h"
+#include "core/fpdfdoc/cpdf_annotlist.h"
 
 #if _FX_PLATFORM_ != _FX_PLATFORM_WINDOWS_
 #include <cstring>
@@ -1195,6 +1196,35 @@ bool GetPngData(std::vector<unsigned char>& png_encoding,
     return true;
 }
 
+void FPDF_RenderWidgetAnnotation(FPDF_PAGE page, FPDF_BITMAP bitmap, int width, int height) {
+    CPDF_Page* pPage = CPDFPageFromFPDFPage(page);
+    if (!pPage)
+        return;
+    auto pOwnedList = pdfium::MakeUnique<CPDF_AnnotList>(pPage);
+    CPDF_AnnotList* pList = pOwnedList.get();
+    bool bIncludeWidget = false;
+    for (const auto& pAnnot : pList->All()) {
+        if (pAnnot->GetSubtype() == CPDF_Annot::Subtype::WIDGET) {
+            bIncludeWidget = true;
+            break;
+        }
+    }
+    if (!bIncludeWidget)
+        return;
+
+    FPDF_DOCUMENT document = FPDFDocumentFromCPDFDocument(pPage->GetDocument());
+
+    FPDF_FORMFILLINFO form_fill_info = {};
+#ifdef PDF_ENABLE_XFA
+    form_fill_info.version = 2;
+#else   // PDF_ENABLE_XFA
+    form_fill_info.version = 1;
+#endif  // PDF_ENABLE_XFA
+
+    ScopedFPDFFormHandle form_handle(FPDFDOC_InitFormFillEnvironment(document, &form_fill_info));
+    FPDF_FFLDraw(form_handle.get(), bitmap, page, 0, 0, width, height, 0, 0);
+}
+
 FPDF_EXPORT bool FPDF_CALLCONV
 FPDF_SavePageBitmap(FPDF_PAGE page, FPDF_STRING path, double scaleX, double scaleY) {
     auto width = static_cast<int>(FPDF_GetPageWidth(page) * scaleX);
@@ -1207,6 +1237,7 @@ FPDF_SavePageBitmap(FPDF_PAGE page, FPDF_STRING path, double scaleX, double scal
         FPDFBitmap_FillRect(bitmap.get(), 0, 0, width, height, fill_color);
 
         FPDF_RenderPageBitmap(bitmap.get(), page, 0, 0, width, height, 0, FPDF_ANNOT);
+        FPDF_RenderWidgetAnnotation(page, bitmap.get(), width, height);
 
         int stride = FPDFBitmap_GetStride(bitmap.get());
         const char* buffer = reinterpret_cast<const char*>(FPDFBitmap_GetBuffer(bitmap.get()));
@@ -1229,6 +1260,7 @@ FPDF_GetPageBitmap(FPDF_PAGE page, FPDF_PNG_ENCODING& png_encoding, double scale
         FPDFBitmap_FillRect(bitmap.get(), 0, 0, width, height, fill_color);
 
         FPDF_RenderPageBitmap(bitmap.get(), page, 0, 0, width, height, 0, FPDF_ANNOT);
+        FPDF_RenderWidgetAnnotation(page, bitmap.get(), width, height);
 
         int stride = FPDFBitmap_GetStride(bitmap.get());
         const char* buffer = reinterpret_cast<const char*>(FPDFBitmap_GetBuffer(bitmap.get()));

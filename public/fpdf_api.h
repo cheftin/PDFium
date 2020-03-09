@@ -248,4 +248,7 @@ FPDF_EXPORT std::string FPDF_GetPageOpaqueData(FPDF_DOCUMENT document, int index
 FPDF_EXPORT void FPDF_SetGlobalOpaqueData(FPDF_DOCUMENT document, std::string key, std::string value);
 FPDF_EXPORT std::string FPDF_GetGlobalOpaqueData(FPDF_DOCUMENT document, std::string key);
 
+FPDF_EXPORT std::string FPDF_GetPageContentStream(FPDF_DOCUMENT document, int index);
+FPDF_EXPORT void FPDF_SetPageContentStream(FPDF_DOCUMENT document, int index, std::string value);
+
 #endif  // PUBLIC_FPDFAPI_H_

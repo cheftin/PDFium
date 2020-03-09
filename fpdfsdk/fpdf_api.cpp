@@ -1520,3 +1520,25 @@ FPDF_BOOL FPDF_CreatePDFDocumentFromImages(std::vector<std::string>& images_path
     FPDF_CloseDocument(new_document);
     return ret;
 }
+
+FPDF_EXPORT
+std::string FPDF_GetPageContentStream(FPDF_DOCUMENT document, int index) {
+    FPDF_PAGE _page = FPDF_LoadPage(document, index);
+    CPDF_Page* page = CPDFPageFromFPDFPage(_page);
+    CPDF_Stream* stream = page->GetDict()->GetStreamFor(pdfium::page_object::kContents);
+
+    RetainPtr<CPDF_StreamAcc> streamacc;
+    streamacc = pdfium::MakeRetain<CPDF_StreamAcc>(stream);
+    streamacc->LoadAllDataFiltered();
+    size_t length = streamacc->GetSize();
+    uint8_t* temp = streamacc->GetData();
+    return std::string((char*)temp, length);
+}
+
+FPDF_EXPORT
+void FPDF_SetPageContentStream(FPDF_DOCUMENT document, int index, std::string value) {
+    FPDF_PAGE _page = FPDF_LoadPage(document, index);
+    CPDF_Page* page = CPDFPageFromFPDFPage(_page);
+    CPDF_Stream* stream = page->GetDict()->GetStreamFor(pdfium::page_object::kContents);
+    stream->SetDataAndRemoveFilter(pdfium::make_span((uint8_t*)value.c_str(), value.length()));
+}

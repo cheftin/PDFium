@@ -43,6 +43,7 @@ cd %PDFium_SOURCE_DIR%
 call git checkout %PDFium_BRANCH%
 cd ..
 call gclient sync
+call python -m pip install pywin32
 
 echo on
 cd %PDFium_SOURCE_DIR%

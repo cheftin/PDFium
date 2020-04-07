@@ -145,6 +145,7 @@ typedef struct _FPDF_IMAGE_ITEM_ {
     FPDF_EXPORT _FPDF_IMAGE_ITEM_(const _FPDF_IMAGE_ITEM_& other);
     FPDF_EXPORT _FPDF_IMAGE_ITEM_& operator=(const _FPDF_IMAGE_ITEM_& other);
     FPDF_RECT bbox;
+    FPDF_RECT clipBox;
     FPDF_COLOR fillColor;
     FPDF_COLOR strokeColor;
     std::vector<unsigned char> png_encoding;

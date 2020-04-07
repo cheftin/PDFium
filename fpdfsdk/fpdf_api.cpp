@@ -553,6 +553,15 @@ void FPDF_ExtractImageData(CPDF_Page* pPage, CPDF_ImageObject* imgObj, std::vect
 
 void FPDF_GetImageItem(CPDF_ImageObject* pImageObj, FPDF_IMAGE_ITEM& imageItem, CPDF_Page* pPage, bool saveImages) {
     FPDF_GetPageObjectBBox(pImageObj, imageItem.bbox);
+    // image clip box
+    CFX_FloatRect rect;
+    if (pImageObj->m_ClipPath.HasRef())
+        rect = pImageObj->m_ClipPath.GetClipBox();
+    imageItem.clipBox.left = rect.left;
+    imageItem.clipBox.top = rect.top;
+    imageItem.clipBox.right = rect.right;
+    imageItem.clipBox.bottom = rect.bottom;
+
     FPDF_GetColor(pImageObj, imageItem.fillColor, imageItem.strokeColor);
     if (saveImages) {
         FPDF_ExtractImageData(pPage, pImageObj, imageItem.png_encoding);
@@ -687,6 +696,9 @@ void FPDF_ProcessImageObject(
     const CFX_Matrix& formMatrix,
     std::vector<CPDF_ImageObject*>& images) {
     pImageObj->Transform(formMatrix);
+    if (pImageObj->m_ClipPath.HasRef()) {
+        pImageObj->m_ClipPath.Transform(formMatrix);
+    }
     images.push_back(pImageObj);
     return;
 }

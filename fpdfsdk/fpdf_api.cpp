@@ -1554,3 +1554,14 @@ void FPDF_SetPageContentStream(FPDF_DOCUMENT document, int index, std::string va
     CPDF_Stream* stream = page->GetDict()->GetStreamFor(pdfium::page_object::kContents);
     stream->SetDataAndRemoveFilter(pdfium::make_span((uint8_t*)value.c_str(), value.length()));
 }
+
+FPDF_EXPORT
+bool FPDF_GetFPDFPageMatrix(FPDF_PAGE page, double* a, double* b, double* c, double* d, double* e, double* f) {
+    CPDF_Page* pPage = CPDFPageFromFPDFPage(page);
+    if (!pPage || !a || !b || !c || !d || !e || !f)
+        return false;
+    CFX_Matrix cfx_matrix;
+    FPDF_GetPageMatrix(pPage, cfx_matrix);
+    std::tie(*a, *b, *c, *d, *e, *f) = cfx_matrix.AsTuple();
+    return true;
+}

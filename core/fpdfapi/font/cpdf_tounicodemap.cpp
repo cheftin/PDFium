@@ -172,7 +172,15 @@ void CPDF_ToUnicodeMap::HandleBeginBFRange(CPDF_SimpleParser* pParser) {
       return;
 
     uint32_t lowcode = lowcode_opt.value();
-    uint32_t highcode = (lowcode & 0xffffff00) | (highcode_opt.value() & 0xff);
+    uint32_t highcode = highcode_opt.value();
+    if (highcode < lowcode) {
+      break;
+    } else if (highcode - lowcode > 255) {
+      highcode = (lowcode & 0xffffff00) | (highcode & 0xff);
+      if ((highcode == (uint32_t)-1) || (lowcode & 0xff) > (highcode & 0xff)) {
+        break;
+      }
+    }
 
     ByteStringView start = pParser->GetWord();
     if (start == "[") {

@@ -15,3 +15,4 @@ notifications:
 
 build_script:
   - cmd: ./ci-build/build.bat
+  - cmd: ./ci-build/build.bat debug

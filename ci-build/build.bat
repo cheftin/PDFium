@@ -1,6 +1,7 @@
 REM Input
 set PLATFORM=x64
 set CONFIGURATION=Release
+if "%1" == "debug" set CONFIGURATION=Debug
 set PDFium_BRANCH=cheftin
 
 set DepotTools_URL=https://storage.googleapis.com/chrome-infra/depot_tools.zip
@@ -9,13 +10,13 @@ set DepotTools_DIR=%CD%/depot_tools
 set PDFium_URL=https://github.com/PaodingAI/PDFium.git
 set PDFium_SOURCE_DIR=%CD%\pdfium
 
-set PDFium_BUILD_DIR=%PDFium_SOURCE_DIR%\out
+set PDFium_BUILD_DIR=%PDFium_SOURCE_DIR%\out-%CONFIGURATION%
 set PDFium_CI_DIR=%PDFium_SOURCE_DIR%\ci-build
 set PDFium_CMAKE_CONFIG=%PDFium_CI_DIR%\PDFiumConfig.cmake
 set PDFium_ARGS=%PDFium_CI_DIR%\args\windows.args.gn
 
 REM Output
-set PDFium_STAGING_DIR=%CD%\staging
+set PDFium_STAGING_DIR=%CD%\staging-%CONFIGURATION%
 set PDFium_INCLUDE_DIR=%PDFium_STAGING_DIR%\include
 set PDFium_BIN_DIR=%PDFium_STAGING_DIR%\%PLATFORM%\bin
 set PDFium_LIB_DIR=%PDFium_STAGING_DIR%\%PLATFORM%\lib
@@ -72,4 +73,4 @@ if "%CONFIGURATION%"=="Debug" move %PDFium_BUILD_DIR%\pdfium.dll.pdb %PDFium_BIN
 cd %PDFium_STAGING_DIR%
 call 7z a %PDFium_ARTIFACT% *
 
-C:\cygwin64\bin\bash %PDFium_CI_DIR%\upload-win.sh %PDFium_SOURCE_DIR% %PDFium_ARTIFACT% %PLATFORM%
+C:\cygwin64\bin\bash %PDFium_CI_DIR%\upload-win.sh %PDFium_SOURCE_DIR% %PDFium_ARTIFACT% %PLATFORM% %CONFIGURATION%

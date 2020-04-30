@@ -13,6 +13,10 @@ notifications:
     on_build_failure: true
     on_build_status_changed: false
 
+environment:
+  matrix:
+    - CONFIGURATION: Debug
+    - CONFIGURATION: Release
+
 build_script:
   - cmd: ./ci-build/build.bat
-  - cmd: ./ci-build/build.bat debug

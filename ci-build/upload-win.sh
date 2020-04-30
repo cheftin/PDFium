@@ -3,7 +3,7 @@ FILE=$2
 ARCH=$3
 CONF=$4
 
-if [[ $CONF == "Debug"]]; then
+if [[ $CONF == "Debug" ]]; then
     CONF="-debug"
 else
     CONF=""

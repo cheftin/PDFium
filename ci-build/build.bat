@@ -1,8 +1,10 @@
 REM Input
 set PLATFORM=x64
-set CONFIGURATION=Release
-if "%1" == "debug" set CONFIGURATION=Debug
+REM set CONFIGURATION=Release
+REM if "%CONFIGURATION" == "debug" set CONFIGURATION=Debug
 set PDFium_BRANCH=cheftin
+
+echo Config=%CONFIGURATION%
 
 set DepotTools_URL=https://storage.googleapis.com/chrome-infra/depot_tools.zip
 set DepotTools_DIR=%CD%/depot_tools
@@ -52,6 +54,7 @@ call git checkout -- .
 
 copy %PDFium_ARGS% %PDFium_BUILD_DIR%\args.gn
 if "%CONFIGURATION%"=="Release" echo is_debug=false >> %PDFium_BUILD_DIR%\args.gn
+if "%CONFIGURATION%"=="Debug" echo is_debug=true >> %PDFium_BUILD_DIR%\args.gn
 if "%PLATFORM%"=="x86" echo target_cpu="x86" >> %PDFium_BUILD_DIR%\args.gn
 
 call gn gen %PDFium_BUILD_DIR%

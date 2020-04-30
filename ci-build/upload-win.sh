@@ -1,14 +1,21 @@
 SOURCE_DIR=$1
 FILE=$2
 ARCH=$3
+CONF=$4
+
+if [[ $CONF == "Debug"]]; then
+    CONF="-debug"
+else
+    CONF=""
+fi
 
 PDFium_SOURCE_REVIISON=$(git -C ${SOURCE_DIR} rev-parse --short HEAD)
 DATE=$(C:/cygwin64/bin/date +%Y%m%d%H%M)
 
 curl http://bohr.cheftin.com:8080/pkg-c.php -F token=${CXAN_TOKEN} -F file=@${FILE} \
-     -F dest=/pdfium/windows-${ARCH}/pdfium-windows-${ARCH}-${DATE}-${PDFium_SOURCE_REVIISON}.zip
+     -F dest=/pdfium/windows-${ARCH}/pdfium-windows-${ARCH}-${DATE}-${PDFium_SOURCE_REVIISON}${CONF}.zip
 curl http://bohr.cheftin.com:8080/pkg-c.php -F token=${CXAN_TOKEN} -F file=@${FILE} \
-     -F dest=/pdfium/windows-${ARCH}/pdfium-windows-${ARCH}-latest.zip
+     -F dest=/pdfium/windows-${ARCH}/pdfium-windows-${ARCH}-latest${CONF}.zip
 
 curl $NOTIFICATION_MM_WEBHOOK --header "Content-Type: application/json"  --request POST \
   --data-binary @- <<EOF
@@ -27,12 +34,12 @@ curl $NOTIFICATION_MM_WEBHOOK --header "Content-Type: application/json"  --reque
         {
           "short":true,
           "title":"Permanent Link",
-          "value":"http://bohr.cheftin.com:8080/pdfium/windows-${ARCH}/pdfium-windows-${ARCH}-${DATE}-${PDFium_SOURCE_REVIISON}.zip"
+          "value":"http://bohr.cheftin.com:8080/pdfium/windows-${ARCH}/pdfium-windows-${ARCH}-${DATE}-${PDFium_SOURCE_REVIISON}${CONF}.zip"
         },
         {
           "short":true,
           "title":"Temporary Alias",
-          "value":"http://bohr.cheftin.com:8080/pdfium/windows-${ARCH}/pdfium-windows-${ARCH}-latest.zip"
+          "value":"http://bohr.cheftin.com:8080/pdfium/windows-${ARCH}/pdfium-windows-${ARCH}-latest${CONF}.zip"
         }
       ]
     }

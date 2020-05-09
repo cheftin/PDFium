@@ -202,16 +202,15 @@ class BufferFileWrite : public FPDF_FILEWRITE {
     std::ofstream _file;
 };
 
-#if defined(_WIN32)
-typedef struct _FPDF_RECT_WIN_ {
-    _FPDF_RECT_WIN_() : left(0), right(0), top(0), bottom(0) {}
-    _FPDF_RECT_WIN_(const _FPDF_RECT_WIN_& other) {
+typedef struct _FPDF_RECT_PFB_ {
+    _FPDF_RECT_PFB_() : left(0), right(0), top(0), bottom(0) {}
+    _FPDF_RECT_PFB_(const _FPDF_RECT_PFB_& other) {
         left = other.left;
         right = other.right;
         top = other.top;
         bottom = other.bottom;
     }
-    _FPDF_RECT_WIN_(const _FPDF_RECT_& other) {
+    _FPDF_RECT_PFB_(const _FPDF_RECT_& other) {
         left = other.left;
         right = other.right;
         top = other.top;
@@ -222,32 +221,31 @@ typedef struct _FPDF_RECT_WIN_ {
     float right;
     float top;
     float bottom;
-} FPDF_RECT_WIN;
+} FPDF_RECT_PFB;
 
-typedef struct _FPDF_IMAGE_ITEM_WIN_ {
-    _FPDF_IMAGE_ITEM_WIN_() {}
-    _FPDF_IMAGE_ITEM_WIN_(const _FPDF_IMAGE_ITEM_WIN_& other) {
+typedef struct _FPDF_IMAGE_ITEM_PFB_ {
+    _FPDF_IMAGE_ITEM_PFB_() {}
+    _FPDF_IMAGE_ITEM_PFB_(const _FPDF_IMAGE_ITEM_PFB_& other) {
         bbox = other.bbox;
         clipBox = other.clipBox;
     }
 
-    FPDF_RECT_WIN bbox;
-    FPDF_RECT_WIN clipBox;
-} FPDF_IMAGE_ITEM_WIN;
+    FPDF_RECT_PFB bbox;
+    FPDF_RECT_PFB clipBox;
+} FPDF_IMAGE_ITEM_PFB;
 
-typedef struct _FPDF_PAGE_ITEMS_WIN_ {
-    _FPDF_PAGE_ITEMS_WIN_() : pImages(nullptr), image_counts(0) {}
+typedef struct _FPDF_PAGE_ITEMS_PFB_ {
+    _FPDF_PAGE_ITEMS_PFB_() : pImages(nullptr), image_counts(0) {}
 
-    FPDF_IMAGE_ITEM_WIN* pImages;
+    FPDF_IMAGE_ITEM_PFB* pImages;
     uint32_t image_counts;
-} FPDF_PAGE_ITEMS_WIN;
+} FPDF_PAGE_ITEMS_PFB;
 
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
-FPDF_GetPageItemForWin(FPDF_PAGE page, FPDF_PAGE_ITEMS_WIN& item);
+FPDF_GetPageItemForPFB(FPDF_PAGE page, FPDF_PAGE_ITEMS_PFB& item);
 
 FPDF_EXPORT void FPDF_CALLCONV
-FPDF_DestroyPageItemForWin(FPDF_PAGE_ITEMS_WIN& item);
-#endif
+FPDF_DestroyPageItemForPFB(FPDF_PAGE_ITEMS_PFB& item);
 
 FPDF_EXPORT void FPDF_CALLCONV
 FPDF_LoadPageObject(FPDF_PAGE page, FPDF_PAGE_ITEM& pageObj, bool saveGlyphs=false, bool saveImages=false);

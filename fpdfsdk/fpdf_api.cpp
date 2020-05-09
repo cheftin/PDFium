@@ -1555,8 +1555,8 @@ void FPDF_SetPageContentStream(FPDF_DOCUMENT document, int index, std::string va
     stream->SetDataAndRemoveFilter(pdfium::make_span((uint8_t*)value.c_str(), value.length()));
 }
 
-FPDF_EXPORT
-bool FPDF_GetFPDFPageMatrix(FPDF_PAGE page, double* a, double* b, double* c, double* d, double* e, double* f) {
+FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
+FPDF_GetFPDFPageMatrix(FPDF_PAGE page, double* a, double* b, double* c, double* d, double* e, double* f) {
     CPDF_Page* pPage = CPDFPageFromFPDFPage(page);
     if (!pPage || !a || !b || !c || !d || !e || !f)
         return false;
@@ -1565,3 +1565,98 @@ bool FPDF_GetFPDFPageMatrix(FPDF_PAGE page, double* a, double* b, double* c, dou
     std::tie(*a, *b, *c, *d, *e, *f) = cfx_matrix.AsTuple();
     return true;
 }
+
+#if defined(_WIN32)
+void FPDF_ProcessFormObjForWin(FPDF_PAGEOBJECT page_obj, const CFX_Matrix& matrix, std::vector<FPDF_IMAGE_ITEM_WIN>& images);
+
+inline void FPDF_GetWinImageItemBox(FPDF_RECT_WIN& box, CFX_FloatRect& rect) {
+    box.left = rect.left;
+    box.top = rect.top;
+    box.right = rect.right;
+    box.bottom = rect.bottom;
+}
+
+void FPDF_ProcessImageObjectForWin(CPDF_ImageObject* pImageObj,
+                                   const CFX_Matrix& matrix,
+                                   std::vector<FPDF_IMAGE_ITEM_WIN>& images) {
+    FPDF_IMAGE_ITEM_WIN image;
+    // clip box
+    CFX_FloatRect rect;
+    if (pImageObj->m_ClipPath.HasRef()) {
+        pImageObj->m_ClipPath.Transform(matrix);
+        rect = pImageObj->m_ClipPath.GetClipBox();
+    }
+    FPDF_GetWinImageItemBox(image.clipBox, rect);
+    // bbox
+    CFX_Matrix img_matrix = pImageObj->matrix();
+    img_matrix.Concat(matrix);
+    rect = img_matrix.TransformRect(CFX_FloatRect(0.0f, 0.0f, 1.0f, 1.0f));
+    FPDF_GetWinImageItemBox(image.bbox, rect);
+    images.push_back(image);
+}
+
+void FPDF_FindAndProcessImageObj(FPDF_PAGEOBJECT object,
+                                 const CFX_Matrix& matrix,
+                                 std::vector<FPDF_IMAGE_ITEM_WIN>& images,
+                                 int obj_type) {
+    if (obj_type == FPDF_PAGEOBJ_IMAGE) {
+        CPDF_PageObject* pImageObj = CPDFPageObjectFromFPDFPageObject(object);
+        FPDF_ProcessImageObjectForWin(pImageObj->AsImage(), matrix, images);
+    } else {
+        FPDF_ProcessFormObjForWin(object, matrix, images);
+    }
+}
+
+void FPDF_ProcessFormObjForWin(FPDF_PAGEOBJECT page_obj,
+                               const CFX_Matrix& matrix,
+                               std::vector<FPDF_IMAGE_ITEM_WIN>& images) {
+    int form_counts = FPDFFormObj_CountObjects(page_obj);
+    CFX_Matrix form_matrix = CPDFPageObjectFromFPDFPageObject(page_obj)->AsForm()->form_matrix();
+    form_matrix.Concat(matrix);
+    for (int i = 0; i < form_counts; ++i) {
+        FPDF_PAGEOBJECT form_obj = FPDFFormObj_GetObject(page_obj, i);
+        int obj_type = FPDFPageObj_GetType(form_obj);
+        if (obj_type != FPDF_PAGEOBJ_IMAGE && obj_type != FPDF_PAGEOBJ_FORM)
+            continue;
+        FPDF_FindAndProcessImageObj(form_obj, form_matrix, images, obj_type);
+    }
+}
+
+FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
+FPDF_GetPageItemForWin(FPDF_PAGE page, FPDF_PAGE_ITEMS_WIN& item) {
+    CPDF_Page* pCPDFPage = CPDFPageFromFPDFPage(page);
+    if (!pCPDFPage)
+        return false;
+
+    CFX_Matrix matrix;
+    FPDF_GetPageMatrix(pCPDFPage, matrix);
+    int object_counts =  FPDFPage_CountObjects(page);
+    std::vector<FPDF_IMAGE_ITEM_WIN> images;
+    for (int index = 0; index < object_counts; ++index) {
+        FPDF_PAGEOBJECT page_obj = FPDFPage_GetObject(page, index);
+        int obj_type = FPDFPageObj_GetType(page_obj);
+        if (obj_type != FPDF_PAGEOBJ_IMAGE && obj_type != FPDF_PAGEOBJ_FORM)
+            continue;
+        FPDF_FindAndProcessImageObj(page_obj, matrix, images, obj_type);
+    }
+
+    item.image_counts = images.size();
+    item.pImages = new FPDF_IMAGE_ITEM_WIN[item.image_counts];
+    if (!item.pImages)
+        return false;
+
+    for (uint32_t i = 0; i < item.image_counts; ++i) {
+        item.pImages[i] = images[i];
+    }
+    return true;
+}
+
+FPDF_EXPORT void FPDF_CALLCONV
+FPDF_DestroyPageItemForWin(FPDF_PAGE_ITEMS_WIN& item) {
+    if (!item.pImages)
+        return;
+    delete [] item.pImages;
+    item.pImages = nullptr;
+    item.image_counts = 0;
+}
+#endif

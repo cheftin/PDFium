@@ -241,6 +241,16 @@ typedef struct _FPDF_PAGE_ITEMS_PFB_ {
     uint32_t image_counts;
 } FPDF_PAGE_ITEMS_PFB;
 
+typedef struct _FPDF_PAGE_INFO_ {
+    _FPDF_PAGE_INFO_() : width(0), height(0), text_counts(0), path_counts(0), image_counts(0) {}
+
+    int width;
+    int height;
+    uint32_t text_counts;
+    uint32_t path_counts;
+    uint32_t image_counts;
+} FPDF_PAGE_INFO;
+
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
 FPDF_GetPageItemForPFB(FPDF_PAGE page, FPDF_PAGE_ITEMS_PFB& item);
 
@@ -282,6 +292,9 @@ FPDF_CreatePDFDocumentFromImages(std::vector<std::string>& images_path, std::vec
 
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
 FPDF_GetFPDFPageMatrix(FPDF_PAGE page, double* a, double* b, double* c, double* d, double* e, double* f);
+
+FPDF_EXPORT void FPDF_CALLCONV
+FPDF_GetPageInfo(FPDF_PAGE page, FPDF_PAGE_INFO& info);
 #ifdef __cplusplus
 }
 #endif

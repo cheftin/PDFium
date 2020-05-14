@@ -1658,3 +1658,50 @@ FPDF_DestroyPageItemForPFB(FPDF_PAGE_ITEMS_PFB& item) {
     item.pImages = nullptr;
     item.image_counts = 0;
 }
+
+void ProcessFormObjCounts(FPDF_PAGEOBJECT form_obj, FPDF_PAGE_INFO& info);
+
+void ProcessSubobjCounts(FPDF_PAGEOBJECT sub_obj, FPDF_PAGE_INFO& info, int obj_type) {
+    switch (obj_type)
+    {
+        case FPDF_PAGEOBJ_FORM:
+            ProcessFormObjCounts(sub_obj, info);
+            break;
+        case FPDF_PAGEOBJ_TEXT:
+            ++(info.text_counts);
+            break;
+        case FPDF_PAGEOBJ_PATH:
+            ++(info.path_counts);
+            break;
+        case FPDF_PAGEOBJ_IMAGE:
+            ++(info.image_counts);
+            break;
+        default:
+            break;
+    }
+}
+
+void ProcessFormObjCounts(FPDF_PAGEOBJECT form_obj, FPDF_PAGE_INFO& info) {
+    int form_counts = FPDFFormObj_CountObjects(form_obj);
+    for (int i = 0; i < form_counts; ++i) {
+        FPDF_PAGEOBJECT sub_form_obj = FPDFFormObj_GetObject(form_obj, i);
+        int obj_type = FPDFPageObj_GetType(sub_form_obj);
+        ProcessSubobjCounts(sub_form_obj, info, obj_type);
+    }
+}
+
+FPDF_EXPORT void FPDF_CALLCONV
+FPDF_GetPageInfo(FPDF_PAGE page, FPDF_PAGE_INFO& info) {
+    CPDF_Page* pCPDFPage = CPDFPageFromFPDFPage(page);
+    if (!pCPDFPage)
+        return;
+
+    info.width = FPDF_GetPageWidth(page);
+    info.height = FPDF_GetPageHeight(page);
+    int obj_counts =  FPDFPage_CountObjects(page);
+    for (int i = 0; i < obj_counts; ++i) {
+        FPDF_PAGEOBJECT sub_obj = FPDFPage_GetObject(page, i);
+        int obj_type = FPDFPageObj_GetType(sub_obj);
+        ProcessSubobjCounts(sub_obj, info, obj_type);
+    }
+}

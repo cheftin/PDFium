@@ -1109,6 +1109,27 @@ bool compareBookmarkItem(const FPDF_BOOKMARK_ITEM &item1, const FPDF_BOOKMARK_IT
     return item1.index < item2.index;
 }
 
+std::string convertWStringToString(const std::wstring src) {
+    wchar_t spHigh = 0;
+    std::string ret;
+    for (auto c : src) {
+        std::string cc = FPDF_WCharToString(c);
+        if (c >= 0xD800 && c <= 0xDBFF) { // high surrogate
+            spHigh = c;
+            continue;
+        } else if (c >= 0xDC00 && c <= 0xDFFF) { // low surrogate
+            if (spHigh >= 0xD800 && spHigh <= 0xDBFF) {
+                cc = FPDF_SurrogatePairToString(spHigh, c);
+            } else {
+                // bad sequence
+            }
+            spHigh = 0;
+        }
+        ret += cc;
+    }
+    return ret;
+}
+
 int FPDF_IterBookmarks(FPDF_DOCUMENT document, FPDF_BOOKMARK bookmark, std::vector<FPDF_BOOKMARK_ITEM>& bookmarks, FPDF_BOOKMARK_ITEM* parent, int parent_index, int index, int level) {
     FPDF_BOOKMARK child = FPDFBookmark_GetFirstChild(document, bookmark);
     while (child) {
@@ -1135,7 +1156,7 @@ int FPDF_IterBookmarks(FPDF_DOCUMENT document, FPDF_BOOKMARK bookmark, std::vect
         }
 
         CPDF_Bookmark cbookmark(CPDFDictionaryFromFPDFBookmark(child));
-        item.title = cbookmark.GetTitle().c_str();
+        item.title = convertWStringToString(cbookmark.GetTitle().c_str());
 
         index = FPDF_IterBookmarks(document, child, bookmarks, &item, item.index, index, level + 1);
         child = FPDFBookmark_GetNextSibling(document, child);

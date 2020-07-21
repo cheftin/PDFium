@@ -176,7 +176,7 @@ typedef struct _FPDF_BOOKMARK_ITEM_ {
     int page;
     int level;
     FPDF_INT_LIST children;
-    std::wstring title;
+    std::string title;
 } FPDF_BOOKMARK_ITEM;
 
 typedef struct _FPDF_BOOKMARKS_ITEM_ {

@@ -6,7 +6,7 @@ set PDFium_BRANCH=cheftin
 
 echo Config=%CONFIGURATION%
 
-set DepotTools_URL=https://storage.googleapis.com/chrome-infra/depot_tools.zip
+set DepotTools_URL=http://cxan.kdr2.com/misc/depot_tools-f9eef45d.zip
 set DepotTools_DIR=%CD%/depot_tools
 
 set PDFium_URL=https://github.com/PaodingAI/PDFium.git
@@ -26,7 +26,8 @@ set PDFium_ARTIFACT=%CD%\pdfium-windows-%PLATFORM%.zip
 if "%CONFIGURATION%"=="Debug" set PDFium_ARTIFACT=%CD%\pdfium-windows-%PLATFORM%-debug.zip
 
 call curl -fsSL -o depot_tools.zip %DepotTools_URL%
-call 7z -bd x depot_tools.zip -o%DepotTools_DIR%
+call 7z -bd x depot_tools.zip -o.
+
 set PATH=%DepotTools_DIR%;%PATH%
 set DEPOT_TOOLS_WIN_TOOLCHAIN=0
 

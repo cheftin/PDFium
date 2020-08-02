@@ -1,5 +1,7 @@
 REM Input
-set PLATFORM=x64
+REM set PLATFORM=x64
+echo Platform=%PLATFORM%
+
 REM set CONFIGURATION=Release
 REM if "%CONFIGURATION" == "debug" set CONFIGURATION=Debug
 set PDFium_BRANCH=cheftin

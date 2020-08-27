@@ -1,3 +1,5 @@
+#define _USE_MATH_DEFINES
+
 #include "public/fpdf_api.h"
 #include "public/fpdfview.h"
 #include "public/fpdf_edit.h"

@@ -159,6 +159,7 @@ typedef struct _FPDF_PAGE_ITEM_ {
     FPDF_EXPORT _FPDF_PAGE_ITEM_& operator=(const _FPDF_PAGE_ITEM_& other);
     int id;
     int rotation;
+    int page_rotation;
     FPDF_SIZE size;
     std::vector<FPDF_TEXT_ITEM> texts;
     std::vector<FPDF_PATH_ITEM> paths;
@@ -311,5 +312,7 @@ FPDF_EXPORT std::string FPDF_GetGlobalOpaqueData(FPDF_DOCUMENT document, std::st
 
 FPDF_EXPORT std::string FPDF_GetPageContentStream(FPDF_DOCUMENT document, int index);
 FPDF_EXPORT void FPDF_SetPageContentStream(FPDF_DOCUMENT document, int index, std::string value);
+
+FPDF_EXPORT int FPDF_GetPageRotation(FPDF_PAGE page);
 
 #endif  // PUBLIC_FPDFAPI_H_

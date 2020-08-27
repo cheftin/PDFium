@@ -721,6 +721,35 @@ inline bool FPDF_IsWatermarkText(FPDF_CHAR_INFO& charInfo) {
     return fabs((charInfo.m_Matrix.b + charInfo.m_Matrix.c) * 1000) < 1;
 }
 
+int FPDF_GetTextRotation(CPDF_TextObject* pTextObj) {
+    // counterclockwise rotation angle
+    double a = 0, b = 0, c = 0, d = 0, e = 0, f = 0;
+    std::tie(a, b, c, d, e, f) = pTextObj->GetTextMatrix().AsTuple();
+    if (fabs(b * 1000) < fabs(a) && fabs(c * 1000) < fabs(d)) {
+        return a > 0 ? 0 : 180;
+    }
+    if (fabs(a * 1000) < fabs(b) && fabs(d * 1000) < fabs(c)) {
+        return b > 0 ? 90 : 270;
+    }
+    return int(acos(a) * 180 / M_PI);
+}
+
+void FPDF_CountTextsRotation(CPDF_TextObject* pTextObj, std::vector<int>& result) {
+    int rotation = FPDF_GetTextRotation(pTextObj);
+    if (rotation % 90 != 0) {
+        return;
+    }
+    result[rotation / 90] += 1;
+}
+
+int FPDF_CalcPageTextRotation(std::vector<int>& result) {
+    return max_element(result.begin(), result.end()) - result.begin();
+}
+
+int FPDF_CalcPageRotation(CPDF_Page* pPage, std::vector<int>& result) {
+    return ((pPage->GetPageRotation() - FPDF_CalcPageTextRotation(result)) * 90 + 360) % 360;
+}
+
 bool FPDF_ProcessTextObject(
     CPDF_Page* pPage,
     CPDF_TextPage* textPage,
@@ -971,6 +1000,7 @@ void FPDF_ProcessObject(CPDF_Page* pPage, FPDF_PAGE_ITEM& pageObj, bool saveGlyp
     std::vector<int> paths_index;
     std::vector<int> images_index;
     std::vector<std::vector<int>> texts_index_vec;
+    std::vector<int> texts_rotation_vec(4, 0);
 
     FPDF_TEXT_OBJ_CHARS text_obj_chars;
     FPDF_GenTextObjectChars(textPage, text_obj_chars);
@@ -1015,11 +1045,13 @@ void FPDF_ProcessObject(CPDF_Page* pPage, FPDF_PAGE_ITEM& pageObj, bool saveGlyp
                 continue;
             FPDF_TEXT_ITEM &textItem = pageObj.texts.back();
             textItem.z_index = obj_index;
+            FPDF_CountTextsRotation(pObj->AsText(), texts_rotation_vec);
         }
         // else if (pObj->IsShading())
         //     FPDF_ProcessShadingObject(pObj->AsShading(), matrix, shadings);
     }
 
+    pageObj.page_rotation = FPDF_CalcPageRotation(pPage, texts_rotation_vec);
     FPDF_FillPageTexts(pPage, textPage, pageObj, texts_index_vec, saveGlyphs);
     FPDF_RemoveUnUsedBackgroundText(pageObj);
     obj_index = 0;
@@ -1725,4 +1757,21 @@ FPDF_GetPageInfo(FPDF_PAGE page, FPDF_PAGE_INFO& info) {
         int obj_type = FPDFPageObj_GetType(sub_obj);
         ProcessSubobjCounts(sub_obj, info, obj_type);
     }
+}
+
+FPDF_EXPORT
+int FPDF_GetPageRotation(FPDF_PAGE page) {
+    CPDF_Page* pPDFPage = CPDFPageFromFPDFPage(page);
+    if (!pPDFPage)
+        return -1;
+    std::vector<int> texts_rotation_vec(4, 0);
+    for (auto it = pPDFPage->begin(); it != pPDFPage->end(); ++it) {
+        CPDF_PageObject* pObj = it->get();
+        if (!pObj)
+            continue;
+        if (pObj->IsText()) {
+            FPDF_CountTextsRotation(pObj->AsText(), texts_rotation_vec);
+        }
+    }
+    return FPDF_CalcPageRotation(pPDFPage, texts_rotation_vec);
 }

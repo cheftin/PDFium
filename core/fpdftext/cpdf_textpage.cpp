@@ -1396,6 +1396,9 @@ bool CPDF_TextPage::IsSameTextObject(CPDF_TextObject* pTextObj1,
       return false;
   }
 
+  if (pTextObj1->m_ClipPath.HasRef() ^ pTextObj2->m_ClipPath.HasRef())
+    return false;
+
   CFX_PointF diff = pTextObj1->GetPos() - pTextObj2->GetPos();
   float font_size = pTextObj2->GetFontSize();
   float char_size =

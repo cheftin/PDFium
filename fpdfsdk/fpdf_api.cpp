@@ -41,6 +41,7 @@
 #include "core/fpdfapi/parser/cpdf_stream_acc.h"
 #include "core/fxcrt/fx_safe_types.h"
 #include "core/fxcrt/cfx_utf8encoder.h"
+#include "core/fxcrt/cfx_utf8decoder.h"
 #include "core/fxge/cfx_gemodule.h"
 #include "core/fxge/cfx_fontmgr.h"
 #include "core/fxge/cfx_fontmapper.h"
@@ -52,6 +53,7 @@
 #include "core/fpdfapi/render/cpdf_imagerenderer.h"
 #include "testing/utils/file_util.h"
 #include "core/fpdfdoc/cpdf_annotlist.h"
+#include "testing/fx_string_testhelpers.h"
 
 #if _FX_PLATFORM_ != _FX_PLATFORM_WINDOWS_
 #include <cstring>
@@ -1086,6 +1088,16 @@ std::string FPDF_WStringToString(const std::wstring& src)
     return std::string(result.unterminated_c_str(), result.GetLength());
 }
 
+std::wstring FPDF_StringToWString(const std::string& src)
+{
+    CFX_UTF8Decoder decoder;
+    for(auto c : src) {
+        decoder.Input(c);
+    }
+    WideStringView result = decoder.GetResult();
+    return std::wstring(result.unterminated_c_str(), result.GetLength());
+}
+
 std::string FPDF_WCharToString(const wchar_t wc)
 {
     wchar_t tmp[2] = {0};
@@ -1528,6 +1540,44 @@ FPDF_EXPORT
 std::string FPDF_GetGlobalOpaqueData(FPDF_DOCUMENT document, std::string key) {
     key = "__GLOBAL__::" + key;
     return FPDF_GetPageOpaqueData(document, 0, key);
+}
+
+FPDF_EXPORT void FPDF_CALLCONV
+FPDFPage_InsertTextObject(FPDF_DOCUMENT document, FPDF_PAGE page, FPDF_TEXT_OBJ_INFO& text_info, FPDF_FONT font) {
+    FPDF_PAGEOBJECT text_obj = FPDFPageObj_CreateTextObj(document, font, text_info.font_size);
+    ScopedFPDFWideString text = GetFPDFWideString(FPDF_StringToWString(text_info.text));
+    FPDFText_SetText(text_obj, text.get());
+    FPDFPageObj_Transform(text_obj, 1, 0, 0, 1, text_info.left, text_info.bottom);
+    FPDFPage_InsertObject(page, text_obj);
+}
+
+FPDF_EXPORT void FPDF_CALLCONV
+FPDFPage_InsertImageObject(FPDF_DOCUMENT document, FPDF_PAGE page, FPDF_IMAGE_OBJ_INFO& image_info) {
+    FileAccess img_file(image_info.image_path);
+    FPDF_PAGEOBJECT image_obj = FPDFPageObj_NewImageObj(document);
+    FPDF_BOOL load_ret = FPDFImageObj_LoadJpegFileInline(&page, 1, image_obj, &img_file);
+    if (load_ret) {
+        FPDFPage_InsertObject(page, image_obj);
+        FPDFPageObj_Transform(image_obj, image_info.width, 0, 0, image_info.height, image_info.left, image_info.bottom);
+    }
+}
+
+FPDF_EXPORT
+FPDF_FONT FPDF_ImportFont(FPDF_DOCUMENT document, std::string file_path, int type, bool cid) {
+    long size;
+    std::ifstream input(file_path.c_str(), std::ios::in | std::ios::binary | std::ios::ate);
+    size = input.tellg();
+    input.seekg(0, std::ios::beg);
+    char* buffer = new char[size];
+    memset(buffer, 0, size);
+    input.read(buffer, size);
+    input.close();
+
+    FPDF_FONT font = FPDFText_LoadFont(document, (uint8_t *)buffer, size, type, cid);
+    delete [] buffer;
+    buffer = nullptr;
+
+    return font;
 }
 
 FPDF_EXPORT

@@ -210,6 +210,7 @@ component("pdfium") {
     "third_party:skia_shared",
     ":image_diff",
     ":file_util",
+    ":fx_string_testhelpers",
   ]
 
   public_deps = [
@@ -267,6 +268,14 @@ jumbo_static_library("file_util") {
   sources = [
     "testing/utils/file_util.cpp",
     "testing/utils/file_util.h",
+  ]
+  configs += [ ":pdfium_core_config" ]
+}
+
+jumbo_static_library("fx_string_testhelpers") {
+  sources = [
+    "testing/fx_string_testhelpers.cpp",
+    "testing/fx_string_testhelpers.h",
   ]
   configs += [ ":pdfium_core_config" ]
 }

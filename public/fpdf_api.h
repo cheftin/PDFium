@@ -252,6 +252,21 @@ typedef struct _FPDF_PAGE_INFO_ {
     uint32_t image_counts;
 } FPDF_PAGE_INFO;
 
+typedef struct _FPDF_TEXT_OBJ_INFO_ {
+    double left;
+    double bottom;
+    float font_size;
+    std::string text;
+} FPDF_TEXT_OBJ_INFO;
+
+typedef struct _FPDF_IMAGE_OBJ_INFO_ {
+    double left;
+    double bottom;
+    double width;
+    double height;
+    std::string image_path;
+} FPDF_IMAGE_OBJ_INFO;
+
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
 FPDF_GetPageItemForPFB(FPDF_PAGE page, FPDF_PAGE_ITEMS_PFB& item);
 
@@ -296,6 +311,13 @@ FPDF_GetFPDFPageMatrix(FPDF_PAGE page, double* a, double* b, double* c, double* 
 
 FPDF_EXPORT void FPDF_CALLCONV
 FPDF_GetPageInfo(FPDF_PAGE page, FPDF_PAGE_INFO& info);
+
+FPDF_EXPORT void FPDF_CALLCONV
+FPDFPage_InsertTextObject(FPDF_DOCUMENT document, FPDF_PAGE page, FPDF_TEXT_OBJ_INFO& text_info, FPDF_FONT font);
+
+FPDF_EXPORT void FPDF_CALLCONV
+FPDFPage_InsertImageObject(FPDF_DOCUMENT document, FPDF_PAGE page, FPDF_IMAGE_OBJ_INFO& image_info);
+
 #ifdef __cplusplus
 }
 #endif
@@ -315,4 +337,5 @@ FPDF_EXPORT void FPDF_SetPageContentStream(FPDF_DOCUMENT document, int index, st
 
 FPDF_EXPORT int FPDF_GetPageRotation(FPDF_PAGE page);
 
+FPDF_EXPORT FPDF_FONT FPDF_ImportFont(FPDF_DOCUMENT document, std::string file_path, int type, bool cid);
 #endif  // PUBLIC_FPDFAPI_H_

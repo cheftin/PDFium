@@ -1548,6 +1548,7 @@ FPDFPage_InsertTextObject(FPDF_DOCUMENT document, FPDF_PAGE page, FPDF_TEXT_OBJ_
     ScopedFPDFWideString text = GetFPDFWideString(FPDF_StringToWString(text_info.text));
     FPDFText_SetText(text_obj, text.get());
     FPDFPageObj_Transform(text_obj, 1, 0, 0, 1, text_info.left, text_info.bottom);
+    FPDFPageObj_SetBlendMode(text_obj, "Lighten");
     FPDFPage_InsertObject(page, text_obj);
 }
 

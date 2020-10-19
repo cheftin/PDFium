@@ -90,6 +90,14 @@ float* CPDF_TextState::GetMutableCTM() {
   return m_Ref.GetPrivateCopy()->m_CTM;
 }
 
+float CPDF_TextState::GetTextHorzScale() const {
+  return m_Ref.GetObject()->m_TextHorzScale;
+}
+
+void CPDF_TextState::SetTextHorzScale(float size) {
+  m_Ref.GetPrivateCopy()->m_TextHorzScale = size;
+}
+
 CPDF_TextState::TextData::TextData()
     : m_pFont(nullptr),
       m_pDocument(nullptr),

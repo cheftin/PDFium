@@ -1381,6 +1381,7 @@ void CPDF_StreamContentParser::Handle_SetHorzScale() {
     return;
   }
   m_pCurStates->m_TextHorzScale = GetNumber(0) / 100;
+  m_pCurStates->m_TextState.SetTextHorzScale(m_pCurStates->m_TextHorzScale);
   OnChangeTextMatrix();
 }
 

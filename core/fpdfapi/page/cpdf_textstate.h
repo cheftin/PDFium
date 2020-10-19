@@ -58,6 +58,9 @@ class CPDF_TextState {
   const float* GetCTM() const;
   float* GetMutableCTM();
 
+  float GetTextHorzScale() const;
+  void SetTextHorzScale(float size);
+
  private:
   class TextData final : public Retainable {
    public:
@@ -80,6 +83,8 @@ class CPDF_TextState {
     TextRenderingMode m_TextMode;
     float m_Matrix[4];
     float m_CTM[4];
+
+    float m_TextHorzScale = 1.0f;
 
    private:
     TextData();

@@ -306,7 +306,7 @@ void FPDF_GetTextStyle(FPDF_CHAR_INFO& charInfo, FPDF_TEXT_ITEM& textItem) {
         textItem.bold = fxFont->IsBold();
         textItem.italic = fxFont->IsItalic();
         textItem.fontflags = pdFont->GetFontFlags();
-        textItem.fontsize = charInfo.m_FontSize * charInfo.m_Matrix.GetXUnit();
+        textItem.fontsize = fabs(charInfo.m_FontSize) * charInfo.m_Matrix.GetXUnit();
         textItem.textMode = static_cast<int>(charInfo.m_pTextObj->m_TextState.GetTextMode());
     } else {
         textItem.hasFont = false;
@@ -730,7 +730,7 @@ int FPDF_GetTextRotation(CPDF_TextObject* pTextObj) {
     double a = 0, b = 0, c = 0, d = 0, e = 0, f = 0;
     std::tie(a, b, c, d, e, f) = pTextObj->GetTextMatrix().AsTuple();
     if (fabs(b * 1000) < fabs(a) && fabs(c * 1000) < fabs(d)) {
-        return a > 0 ? 0 : 180;
+        return a * pTextObj->m_TextState.GetTextHorzScale() > 0 ? 0 : 180;
     }
     if (fabs(a * 1000) < fabs(b) && fabs(d * 1000) < fabs(c)) {
         return b > 0 ? 90 : 270;

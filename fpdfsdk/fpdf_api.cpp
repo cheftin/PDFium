@@ -1563,6 +1563,15 @@ FPDFPage_InsertImageObject(FPDF_DOCUMENT document, FPDF_PAGE page, FPDF_IMAGE_OB
     }
 }
 
+
+FPDF_EXPORT void FPDF_CALLCONV
+FPDFPage_InsertRectObject(FPDF_PAGE page, FPDF_RECT_OBJ_INFO& rect_info) {
+    FPDF_PAGEOBJECT rect = FPDFPageObj_CreateNewRect(rect_info.x, rect_info.y, rect_info.w, rect_info.h);
+    FPDFPageObj_SetFillColor(rect, rect_info.r, rect_info.g, rect_info.b, rect_info.a);
+    FPDFPath_SetDrawMode(rect, FPDF_FILLMODE_ALTERNATE, 0);
+    FPDFPage_InsertObject(page, rect);
+}
+
 FPDF_EXPORT
 FPDF_FONT FPDF_ImportFont(FPDF_DOCUMENT document, std::string file_path, int type, bool cid) {
     long size;

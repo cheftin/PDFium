@@ -267,6 +267,17 @@ typedef struct _FPDF_IMAGE_OBJ_INFO_ {
     std::string image_path;
 } FPDF_IMAGE_OBJ_INFO;
 
+typedef struct _FPDF_RECT_OBJ_INFO {
+    float x;
+    float y;
+    float w;
+    float h;
+    unsigned int r;
+    unsigned int g;
+    unsigned int b;
+    unsigned int a;
+} FPDF_RECT_OBJ_INFO;
+
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
 FPDF_GetPageItemForPFB(FPDF_PAGE page, FPDF_PAGE_ITEMS_PFB& item);
 
@@ -317,6 +328,9 @@ FPDFPage_InsertTextObject(FPDF_DOCUMENT document, FPDF_PAGE page, FPDF_TEXT_OBJ_
 
 FPDF_EXPORT void FPDF_CALLCONV
 FPDFPage_InsertImageObject(FPDF_DOCUMENT document, FPDF_PAGE page, FPDF_IMAGE_OBJ_INFO& image_info);
+
+FPDF_EXPORT void FPDF_CALLCONV
+FPDFPage_InsertRectObject(FPDF_PAGE page, FPDF_RECT_OBJ_INFO& rect_info);
 
 #ifdef __cplusplus
 }

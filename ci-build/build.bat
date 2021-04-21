@@ -8,7 +8,7 @@ set PDFium_BRANCH=cheftin
 
 echo Config=%CONFIGURATION%
 
-set DepotTools_URL=http://cxan.kdr2.com/misc/depot_tools-f9eef45d.zip
+set DepotTools_URL=https://cxan.kdr2.com/misc/depot_tools-f9eef45d.zip
 set DepotTools_DIR=%CD%/depot_tools
 
 set PDFium_URL=https://github.com/PaodingAI/PDFium.git

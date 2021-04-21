@@ -159,6 +159,7 @@ typedef struct _FPDF_PROCESS_FORM_OBJ_PARAM {
     FPDF_PAGE_ITEM* pPageObj = nullptr;
     std::vector<std::vector<int>>* pTextsIndexVec = nullptr;
     FPDF_TEXT_OBJ_CHARS* pTextObjChars = nullptr;
+    std::vector<int>* pTextsRotationVec = nullptr;
 } FPDF_PROCESS_FORM_OBJ_PARAM;
 
 BufferFileWrite::BufferFileWrite(const std::string &file) : _file(file, std::ios::out | std::ios::binary) {
@@ -725,10 +726,16 @@ inline bool FPDF_IsWatermarkText(FPDF_CHAR_INFO& charInfo) {
     return fabs((charInfo.m_Matrix.b + charInfo.m_Matrix.c) * 1000) < 1;
 }
 
-int FPDF_GetTextRotation(CPDF_TextObject* pTextObj) {
+int FPDF_GetTextRotation(CPDF_TextObject* pTextObj, CFX_Matrix* formMatrix) {
     // counterclockwise rotation angle
     double a = 0, b = 0, c = 0, d = 0, e = 0, f = 0;
-    std::tie(a, b, c, d, e, f) = pTextObj->GetTextMatrix().AsTuple();
+    CFX_Matrix textMatrix;
+    if (formMatrix == nullptr) {
+        textMatrix = pTextObj->GetTextMatrix();
+    } else {
+        textMatrix = pTextObj->GetTextMatrix() * (*formMatrix);
+    }
+    std::tie(a, b, c, d, e, f) = textMatrix.AsTuple();
     if (fabs(b * 1000) < fabs(a) && fabs(c * 1000) < fabs(d)) {
         return a * pTextObj->m_TextState.GetTextHorzScale() > 0 ? 0 : 180;
     }
@@ -738,8 +745,10 @@ int FPDF_GetTextRotation(CPDF_TextObject* pTextObj) {
     return int(acos(a) * 180 / M_PI);
 }
 
-void FPDF_CountTextsRotation(CPDF_TextObject* pTextObj, std::vector<int>& result) {
-    int rotation = FPDF_GetTextRotation(pTextObj);
+void FPDF_CountTextsRotation(CPDF_TextObject* pTextObj,
+                             std::vector<int>& result,
+                             CFX_Matrix* formMatrix = nullptr) {
+    int rotation = FPDF_GetTextRotation(pTextObj, formMatrix);
     if (rotation % 90 != 0) {
         return;
     }
@@ -751,7 +760,29 @@ int FPDF_CalcPageTextRotation(std::vector<int>& result) {
 }
 
 int FPDF_CalcPageRotation(CPDF_Page* pPage, std::vector<int>& result) {
-    return ((pPage->GetPageRotation() - FPDF_CalcPageTextRotation(result)) * 90 + 360) % 360;
+    return abs(pPage->GetPageRotation() - FPDF_CalcPageTextRotation(result)) * 90;
+}
+
+void FPDF_CountFormTextsRotation(CPDF_FormObject* pFormObj,
+                                 const CFX_Matrix& formMatrix,
+                                 std::vector<int>& result) {
+    const CPDF_Form* pObjectHolder = pFormObj->form();
+    if (pObjectHolder->begin() == pObjectHolder->end())
+        return;
+
+    CFX_Matrix curFormMatrix = pFormObj->form_matrix();
+    curFormMatrix.Concat(formMatrix);
+
+    for (auto it = pObjectHolder->begin(); it != pObjectHolder->end(); ++it) {
+        CPDF_PageObject* pPageObj = it->get();
+        if (!pPageObj)
+            continue;
+        if (pPageObj->IsForm()) {
+            FPDF_CountFormTextsRotation(pPageObj->AsForm(), curFormMatrix, result);
+        } else if (pPageObj->IsText()) {
+            FPDF_CountTextsRotation(pPageObj->AsText(), result, &curFormMatrix);
+        }
+    }
 }
 
 bool FPDF_ProcessTextObject(
@@ -910,6 +941,7 @@ void FPDF_ProcessFormObject(
                 continue;
             FPDF_TEXT_ITEM &textItem = (form_param.pPageObj)->texts.back();
             textItem.z_index = form_param.objIndex;
+            FPDF_CountTextsRotation(pPageObj->AsText(), *(form_param.pTextsRotationVec), &curFormMatrix);
         }
         // else if (pPageObj->IsShading())
         //     FPDF_ProcessShadingObject(pPageObj->AsShading(), curFormMatrix, shadings);
@@ -1020,6 +1052,7 @@ void FPDF_ProcessObject(CPDF_Page* pPage, FPDF_PAGE_ITEM& pageObj, bool saveGlyp
     form_obj_param.pPageObj = &pageObj;
     form_obj_param.pTextsIndexVec = &texts_index_vec;
     form_obj_param.pTextObjChars = &text_obj_chars;
+    form_obj_param.pTextsRotationVec = &texts_rotation_vec;
 
     CFX_Matrix matrix;
     FPDF_GetPageMatrix(pPage, matrix);
@@ -1826,6 +1859,8 @@ int FPDF_GetPageRotation(FPDF_PAGE page) {
     CPDF_Page* pPDFPage = CPDFPageFromFPDFPage(page);
     if (!pPDFPage)
         return -1;
+    CFX_Matrix matrix;
+    FPDF_GetPageMatrix(pPDFPage, matrix);
     std::vector<int> texts_rotation_vec(4, 0);
     for (auto it = pPDFPage->begin(); it != pPDFPage->end(); ++it) {
         CPDF_PageObject* pObj = it->get();
@@ -1833,6 +1868,8 @@ int FPDF_GetPageRotation(FPDF_PAGE page) {
             continue;
         if (pObj->IsText()) {
             FPDF_CountTextsRotation(pObj->AsText(), texts_rotation_vec);
+        } else if (pObj->IsForm()) {
+            FPDF_CountFormTextsRotation(pObj->AsForm(), matrix, texts_rotation_vec);
         }
     }
     return FPDF_CalcPageRotation(pPDFPage, texts_rotation_vec);

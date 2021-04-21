@@ -22,7 +22,7 @@ PDFium_SOURCE_REVIISON=unknown
 CONFIGURATION='Release'
 # CONFIGURATION='Debug'
 
-DepotTools_URL='http://cxan.kdr2.com/misc/depot_tools-f9eef45d.zip'
+DepotTools_URL='https://cxan.kdr2.com/misc/depot_tools-f9eef45d.zip'
 DepotTools_DIR="$PWD/depot_tools"
 
 PDFium_URL='https://github.com/PaodingAI/PDFium.git' # or git@github.com:PaodingAI/PDFium.git
@@ -95,7 +95,7 @@ cd "$PDFium_STAGING_DIR"
 tar cvf "$PDFium_ARTIFACT" -- *
 
 DATE=$(date +%Y%m%d%H%M)
-curl http://cxan.kdr2.com/scripts/file-c.php \
+curl https://cxan.kdr2.com/scripts/file-c.php \
      -F token=${CXAN_TOKEN_KDR2} -F file=@$PDFium_ARTIFACT \
      -F dest=/pdfium/${OS}/pdfium-$OS-${DATE}-${PDFium_SOURCE_REVIISON}.tgz \
      -F alias=/pdfium/${OS}/pdfium-$OS-latest.tgz
@@ -110,19 +110,19 @@ curl $NOTIFICATION_MM_WEBHOOK --header "Content-Type: application/json"  --reque
       "pretext": "PDFium(${OS}) Build Completed.",
       "text": "A PDFium(${OS}) building was just completed. You can download the new package from the links below.",
       "author_name": "Cheftin via Travis CI",
-      "author_link": "http://cxan.kdr2.com/pdfium/${OS}/",
+      "author_link": "https://cxan.kdr2.com/pdfium/${OS}/",
       "title": "PDFium(${OS}) Build Completed.",
       "title_link": "https://travis-ci.org/cheftin/PDFium",
       "fields": [
         {
           "short":true,
           "title":"Permanent Link",
-          "value":"http://cxan.kdr2.com/pdfium/${OS}/pdfium-$OS-${DATE}-${PDFium_SOURCE_REVIISON}.tgz"
+          "value":"https://cxan.kdr2.com/pdfium/${OS}/pdfium-$OS-${DATE}-${PDFium_SOURCE_REVIISON}.tgz"
         },
         {
           "short":true,
           "title":"Temporary Alias",
-          "value":"http://cxan.kdr2.com/pdfium/${OS}/pdfium-$OS-latest.tgz"
+          "value":"https://cxan.kdr2.com/pdfium/${OS}/pdfium-$OS-latest.tgz"
         }
       ]
     }

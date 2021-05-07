@@ -162,35 +162,8 @@ group("pdfium_public_headers") {
   ]
 }
 
-# jumbo_static_library("pdfium") {
+# component("pdfium") {
 shared_library("pdfium") {
-  sources = [
-    "fpdfsdk/fpdf_annot.cpp",
-    "fpdfsdk/fpdf_attachment.cpp",
-    "fpdfsdk/fpdf_catalog.cpp",
-    "fpdfsdk/fpdf_dataavail.cpp",
-    "fpdfsdk/fpdf_doc.cpp",
-    "fpdfsdk/fpdf_editimg.cpp",
-    "fpdfsdk/fpdf_editpage.cpp",
-    "fpdfsdk/fpdf_editpath.cpp",
-    "fpdfsdk/fpdf_edittext.cpp",
-    "fpdfsdk/fpdf_ext.cpp",
-    "fpdfsdk/fpdf_flatten.cpp",
-    "fpdfsdk/fpdf_formfill.cpp",
-    "fpdfsdk/fpdf_ppo.cpp",
-    "fpdfsdk/fpdf_progressive.cpp",
-    "fpdfsdk/fpdf_save.cpp",
-    "fpdfsdk/fpdf_searchex.cpp",
-    "fpdfsdk/fpdf_structtree.cpp",
-    "fpdfsdk/fpdf_sysfontinfo.cpp",
-    "fpdfsdk/fpdf_text.cpp",
-    "fpdfsdk/fpdf_transformpage.cpp",
-    "fpdfsdk/fpdf_view.cpp",
-    "fpdfsdk/fpdf_api.cpp",
-  ]
-}
-
-component("pdfium") {
   libs = []
   configs += [ ":pdfium_strict_config" ]
   public_configs = [ ":pdfium_public_config" ]
@@ -253,7 +226,7 @@ component("pdfium") {
   }
 }
 
-jumbo_static_library("image_diff") {
+static_library("image_diff") {
   sources = [
     "testing/image_diff/image_diff_png.cpp",
     "testing/image_diff/image_diff_png.h",
@@ -264,15 +237,17 @@ jumbo_static_library("image_diff") {
   ]
 }
 
-jumbo_static_library("file_util") {
+static_library("file_util") {
   sources = [
     "testing/utils/file_util.cpp",
     "testing/utils/file_util.h",
+    "testing/utils/path_service.h",
+    "testing/utils/path_service.cpp",
   ]
   configs += [ ":pdfium_core_config" ]
 }
 
-jumbo_static_library("fx_string_testhelpers") {
+static_library("fx_string_testhelpers") {
   sources = [
     "testing/fx_string_testhelpers.cpp",
     "testing/fx_string_testhelpers.h",

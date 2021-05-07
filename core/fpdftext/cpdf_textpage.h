@@ -51,6 +51,7 @@ class CPDF_TextPage {
   };
 
   CPDF_TextPage(const CPDF_Page* pPage, bool rtl);
+  CPDF_TextPage(const CPDF_Page* pPage, bool rtl, bool bNeedTransformClipPath);
   ~CPDF_TextPage();
 
   int CharIndexFromTextIndex(int text_index) const;
@@ -76,7 +77,6 @@ class CPDF_TextPage {
 
   int CountRects(int start, int nCount);
   bool GetRect(int rectIndex, CFX_FloatRect* pRect) const;
-  void setNeedTransformClipPath(bool need) {m_bNeedTransformClipPath = need;}
 
  private:
   enum class TextOrientation {

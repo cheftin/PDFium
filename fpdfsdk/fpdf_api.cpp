@@ -12,8 +12,6 @@
 #include <vector>
 #include <algorithm>
 
-#include "core/fpdfapi/cpdf_modulemgr.h"
-#include "core/fpdfapi/page/cpdf_pagerendercontext.h"
 #include "core/fpdfapi/page/cpdf_page.h"
 #include "core/fpdfapi/page/cpdf_pageobject.h"
 #include "core/fpdfapi/page/cpdf_textobject.h"
@@ -48,12 +46,16 @@
 #include "core/fxge/systemfontinfo_iface.h"
 #include "core/fxge/cfx_folderfontinfo.h"
 #include "core/fpdfapi/render/cpdf_rendercontext.h"
+#include "core/fpdfapi/render/cpdf_pagerendercache.h"
 #include "core/fpdfapi/render/cpdf_renderstatus.h"
 #include "core/fxge/cfx_defaultrenderdevice.h"
 #include "core/fpdfapi/render/cpdf_imagerenderer.h"
 #include "testing/utils/file_util.h"
 #include "core/fpdfdoc/cpdf_annotlist.h"
 #include "testing/fx_string_testhelpers.h"
+#include "core/fxge/dib/fx_dib.h"
+#include "core/fxge/dib/cfx_dibbase.h"
+#include "third_party/base/stl_util.h"
 
 #if _FX_PLATFORM_ != _FX_PLATFORM_WINDOWS_
 #include <cstring>
@@ -147,7 +149,7 @@ class FileAccess final : public FPDF_FILEACCESS {
 };
 
 typedef std::vector<int> FPDF_TEXT_OBJ_CHARS_INDEX;
-typedef std::map<CPDF_TextObject*, FPDF_TEXT_OBJ_CHARS_INDEX> FPDF_TEXT_OBJ_CHARS;
+typedef std::map<const CPDF_TextObject*, FPDF_TEXT_OBJ_CHARS_INDEX> FPDF_TEXT_OBJ_CHARS;
 
 typedef struct _FPDF_PROCESS_FORM_OBJ_PARAM {
     CPDF_Page* pPage = nullptr;
@@ -224,7 +226,7 @@ void FPDF_GetPageMatrix(CPDF_Page* pPage, CFX_Matrix& matrix) {
     matrix = pPage->GetDisplayMatrix(rect, 0);
 }
 
-void FPDF_GetColor(CPDF_PageObject* pPageObj, FPDF_COLOR& fillColor, FPDF_COLOR& strokeColor) {
+void FPDF_GetColor(const CPDF_PageObject* pPageObj, FPDF_COLOR& fillColor, FPDF_COLOR& strokeColor) {
     if (!pPageObj) {
         fillColor.r = 0;
         fillColor.g = 0;
@@ -249,7 +251,7 @@ void FPDF_GetColor(CPDF_PageObject* pPageObj, FPDF_COLOR& fillColor, FPDF_COLOR&
     strokeColor.a = GetUnsignedAlpha(pPageObj->m_GeneralState.GetStrokeAlpha());
 }
 
-void FPDF_GetPageObjectBBox(CPDF_PageObject* pageObj, FPDF_RECT& box, CPDF_Page* pPage=nullptr) {
+void FPDF_GetPageObjectBBox(const CPDF_PageObject* pageObj, FPDF_RECT& box, CPDF_Page* pPage=nullptr) {
     if (!pageObj) {
         box.left = 0.0;
         box.top = 0.0;
@@ -276,7 +278,7 @@ void FPDF_GetPageObjectBBox(CPDF_PageObject* pageObj, FPDF_RECT& box, CPDF_Page*
     box.bottom = rect.bottom;
 }
 
-void FPDF_GetPageObjectClipBox(CPDF_PageObject* pageObj, FPDF_RECT& box, CPDF_Page* pPage=nullptr) {
+void FPDF_GetPageObjectClipBox(const CPDF_PageObject* pageObj, FPDF_RECT& box, CPDF_Page* pPage=nullptr) {
     if (!pageObj || !pageObj->m_ClipPath.HasRef()) {
         box.left = 0.0;
         box.top = 0.0;
@@ -296,19 +298,19 @@ void FPDF_GetPageObjectClipBox(CPDF_PageObject* pageObj, FPDF_RECT& box, CPDF_Pa
     box.bottom = rect.bottom;
 }
 
-void FPDF_GetTextStyle(FPDF_CHAR_INFO& charInfo, FPDF_TEXT_ITEM& textItem) {
+void FPDF_GetTextStyle(const CPDF_TextPage::CharInfo& charInfo, FPDF_TEXT_ITEM& textItem) {
     bool bHasFont = charInfo.m_pTextObj && charInfo.m_pTextObj->GetFont();
     if (bHasFont) {
-        CPDF_Font* pdFont = charInfo.m_pTextObj->GetFont();
+        RetainPtr<CPDF_Font> pdFont = charInfo.m_pTextObj->GetFont();
         CFX_Font* fxFont = pdFont->GetFont();
         textItem.hasFont = true;
-        textItem.familyName = decodeFontName(fxFont->GetFamilyName().IsEmpty() ? pdFont->GetBaseFont() : fxFont->GetFamilyName());
-        textItem.faceName = decodeFontName(fxFont->GetFaceName().IsEmpty() || fxFont->GetFaceName() == "Untitled" ? pdFont->GetBaseFont() : fxFont->GetFaceName());
+        textItem.familyName = decodeFontName(fxFont->GetFamilyName().IsEmpty() ? pdFont->GetBaseFontName() : fxFont->GetFamilyName());
+        textItem.faceName = decodeFontName(fxFont->GetFaceName().IsEmpty() || fxFont->GetFaceName() == "Untitled" ? pdFont->GetBaseFontName() : fxFont->GetFaceName());
         textItem.bold = fxFont->IsBold();
         textItem.italic = fxFont->IsItalic();
         textItem.fontflags = pdFont->GetFontFlags();
-        textItem.fontsize = fabs(charInfo.m_FontSize) * charInfo.m_Matrix.GetXUnit();
-        textItem.textMode = static_cast<int>(charInfo.m_pTextObj->m_TextState.GetTextMode());
+        textItem.fontsize = fabs(charInfo.m_pTextObj->GetFontSize()) * charInfo.m_Matrix.GetXUnit();
+        textItem.textMode = static_cast<int>(charInfo.m_pTextObj->GetTextRenderMode());
     } else {
         textItem.hasFont = false;
         textItem.bold = false;
@@ -319,9 +321,9 @@ void FPDF_GetTextStyle(FPDF_CHAR_INFO& charInfo, FPDF_TEXT_ITEM& textItem) {
     }
 }
 
-void FPDF_GetCharItem(FPDF_CHAR_INFO& charInfo, FPDF_CHAR_ITEM& charItem, CPDF_Page* pPage=nullptr) {
+void FPDF_GetCharItem(const CPDF_TextPage::CharInfo& charInfo, FPDF_CHAR_ITEM& charItem, CPDF_Page* pPage=nullptr) {
     charItem.text = FPDF_WCharToString(charInfo.m_Unicode);
-    charItem.flag = charInfo.m_Flag;
+    charItem.flag = static_cast<uint8_t>(charInfo.m_CharType);
     CFX_Matrix matrix;
     if (pPage) {
         FPDF_GetPageMatrix(pPage, matrix);
@@ -333,11 +335,11 @@ void FPDF_GetCharItem(FPDF_CHAR_INFO& charInfo, FPDF_CHAR_ITEM& charItem, CPDF_P
     charItem.charBox.bottom = charBox.bottom;
 
     bool bHasFont = charInfo.m_pTextObj && charInfo.m_pTextObj->GetFont();
-    float width = bHasFont ? charInfo.m_pTextObj->GetCharWidth(charInfo.m_Charcode) : 0.0;
+    float width = bHasFont ? charInfo.m_pTextObj->GetCharWidth(charInfo.m_CharCode) : 0.0;
     if (bHasFont &&  width > 0) {
-        CPDF_Font* font = charInfo.m_pTextObj->GetFont();
+        RetainPtr<CPDF_Font> font = charInfo.m_pTextObj->GetFont();
         FX_RECT rect = font->GetFontBBox();
-        const float fFontSize = charInfo.m_FontSize / 1000;
+        const float fFontSize = charInfo.m_pTextObj->GetFontSize() / 1000;
         CFX_PointF origin = charInfo.m_Matrix.GetInverse().Transform(charInfo.m_Origin);
         CFX_FloatRect fontBox;
         fontBox.top = rect.top * fFontSize + origin.y;
@@ -366,7 +368,7 @@ void FPDF_GetCharItem(FPDF_CHAR_INFO& charInfo, FPDF_CHAR_ITEM& charItem, CPDF_P
 void FPDF_GetPathItem(CPDF_PathObject* pPathObj, FPDF_PATH_ITEM& pathItem) {
     FPDF_GetPageObjectBBox(pPathObj, pathItem.bbox);
 
-    pathItem.fillType = pPathObj->filltype();
+    pathItem.fillType = static_cast<uint8_t>(pPathObj->filltype());
     pathItem.isStroke = pPathObj->stroke();
     pathItem.width = pPathObj->m_GraphState.GetLineWidth();
     pathItem.isRect = pPathObj->path().IsRect();
@@ -412,21 +414,20 @@ void FPDF_RenderMaskedImage(RetainPtr<CFX_DIBitmap>& bitmap, CPDF_RenderStatus* 
                             const CFX_Matrix& matrix, const FXDIB_ResampleOptions& resampleOptions, int bitmapAlpha) {
     CPDF_ImageRenderer image_render;
     CFX_DefaultRenderDevice bitmap_device1;
-    if (!bitmap_device1.Create(bitmap->GetWidth(), bitmap->GetHeight(), FXDIB_Rgb32, nullptr))
+    if (!bitmap_device1.Create(bitmap->GetWidth(), bitmap->GetHeight(), FXDIB_Format::kRgb32, nullptr))
         return;
     bitmap_device1.GetBitmap()->Clear(0xffffff);
     CPDF_RenderStatus bitmap_render1(pRenderStatus->GetContext(), &bitmap_device1);
-    if (image_render.Start(&bitmap_render1, bitmap, 0, 255, matrix,
-                           resampleOptions, true, BlendMode::kNormal)) {
+
+    if (image_render.Start(&bitmap_render1, bitmap, 0, matrix, resampleOptions, true)) {
         image_render.Continue(nullptr);
     }
 
     CFX_DefaultRenderDevice bitmap_device2;
-    if (!bitmap_device2.Create(bitmap->GetWidth(), bitmap->GetHeight(), FXDIB_8bppRgb, nullptr))
+    if (!bitmap_device2.Create(bitmap->GetWidth(), bitmap->GetHeight(), FXDIB_Format::k8bppRgb, nullptr))
         return;
     CPDF_RenderStatus bitmap_render2(pRenderStatus->GetContext(), &bitmap_device2);
-    if (image_render.Start(&bitmap_render2, pImgLoader->GetMask(), 0xffffffff, 255, matrix,
-                           resampleOptions, true, BlendMode::kNormal)) {
+    if (image_render.Start(&bitmap_render2, pImgLoader->GetMask(), 0xffffffff, matrix, resampleOptions, true)) {
         image_render.Continue(nullptr);
     }
     if (pImgLoader->MatteColor() != 0xffffffff) {
@@ -453,7 +454,7 @@ void FPDF_RenderMaskedImage(RetainPtr<CFX_DIBitmap>& bitmap, CPDF_RenderStatus* 
         }
     }
 
-    bitmap_device2.GetBitmap()->ConvertFormat(FXDIB_8bppMask);
+    bitmap_device2.GetBitmap()->ConvertFormat(FXDIB_Format::k8bppMask);
     bitmap_device1.GetBitmap()->MultiplyAlpha(bitmap_device2.GetBitmap());
     if (bitmapAlpha < 255)
         bitmap_device1.GetBitmap()->MultiplyAlpha(bitmapAlpha);
@@ -465,17 +466,16 @@ void FPDF_RenderDIBBase(CPDF_Page* pPage, CPDF_ImageObject* imgObj, RetainPtr<CF
     if (pPage == nullptr || imgObj == nullptr || bitmap == nullptr)
         return;
 
-    std::unique_ptr<CPDF_RenderContext> pContext = pdfium::MakeUnique<CPDF_RenderContext>(pPage);
-    std::unique_ptr<CFX_DefaultRenderDevice> pDevice = pdfium::MakeUnique<CFX_DefaultRenderDevice>();
+    std::unique_ptr<CPDF_RenderContext> pContext = std::make_unique<CPDF_RenderContext>(
+      pPage->GetDocument(), pPage->GetPageResources(),
+      static_cast<CPDF_PageRenderCache*>(pPage->GetRenderCache()));
+    std::unique_ptr<CFX_DefaultRenderDevice> pDevice = std::make_unique<CFX_DefaultRenderDevice>();
     pDevice->Attach(bitmap, false, nullptr, false);
-    std::unique_ptr<CPDF_RenderStatus> pRenderStatus = pdfium::MakeUnique<CPDF_RenderStatus>(pContext.get(), pDevice.get());
+    std::unique_ptr<CPDF_RenderStatus> pRenderStatus = std::make_unique<CPDF_RenderStatus>(pContext.get(), pDevice.get());
     pRenderStatus->Initialize(nullptr, nullptr);
 
     CPDF_ImageLoader imgLoader;
-    imgLoader.Start(imgObj,
-                    pRenderStatus->GetContext()->GetPageCache(), true,
-                    pRenderStatus->GetGroupFamily(),
-                    pRenderStatus->GetLoadMask(), pRenderStatus.get());
+    imgLoader.Start(imgObj, pRenderStatus.get(), true);
     if (!imgLoader.GetBitmap())
         return;
 
@@ -489,11 +489,11 @@ void FPDF_RenderDIBBase(CPDF_Page* pPage, CPDF_ImageObject* imgObj, RetainPtr<CF
     }
 
     FXDIB_Format format = bitmap->GetFormat();
-    if (format != FXDIB_8bppRgb && format != FXDIB_8bppMask)
+    if (format != FXDIB_Format::k8bppRgb && format != FXDIB_Format::k8bppMask)
         return;
 
     if (!imgObj->GetImage()->IsMask()) {
-        bitmap->ConvertFormat(FXDIB_Rgb);
+        bitmap->ConvertFormat(FXDIB_Format::kRgb);
         return;
     }
 
@@ -502,8 +502,8 @@ void FPDF_RenderDIBBase(CPDF_Page* pPage, CPDF_ImageObject* imgObj, RetainPtr<CF
     FPDF_DWORD fill_color = alpha ? 0x00000000 : 0xFFFFFFFF;
     FPDFBitmap_FillRect(FPDFBitmapFromCFXDIBitmap(bitmap.Get()), 0, 0, bitmap->GetWidth(), bitmap->GetHeight(), fill_color);
 
-    RetainPtr<CFX_DIBBase> pDIBBase = imgLoader.GetBitmap();
-    if (pDIBBase->IsAlphaMask()) {
+    const RetainPtr<CFX_DIBBase>& pDIBBase = imgLoader.GetBitmap();
+    if (pDIBBase->IsMaskFormat()) {
         FX_ARGB fillArgb = pRenderStatus->GetFillArgb(imgObj);
         std::unique_ptr<CFX_ImageRenderer> m_DeviceHandle;
         pRenderStatus->GetRenderDevice()->StartDIBitsWithBlend(pDIBBase, bitmapAlpha, fillArgb, matrix,
@@ -514,7 +514,7 @@ void FPDF_RenderDIBBase(CPDF_Page* pPage, CPDF_ImageObject* imgObj, RetainPtr<CF
     }
 }
 
-void FPDF_ExtractImageData(CPDF_Page* pPage, CPDF_ImageObject* imgObj, std::vector<unsigned char>& png_encoding) {
+void FPDF_ExtractImageData(CPDF_Page* pPage, CPDF_ImageObject* imgObj, std::vector<uint8_t>& png_encoding) {
     if (imgObj == nullptr)
         return;
     RetainPtr<CPDF_Image> pImg = imgObj->GetImage();
@@ -527,7 +527,7 @@ void FPDF_ExtractImageData(CPDF_Page* pPage, CPDF_ImageObject* imgObj, std::vect
 
     RetainPtr<CFX_DIBitmap> pBitmap;
     if (pSource->GetBPP() == 1)
-        pBitmap = pSource->CloneConvert(FXDIB_8bppRgb);
+        pBitmap = pSource->CloneConvert(FXDIB_Format::k8bppRgb);
     else
         pBitmap = pSource->Clone(nullptr);
 
@@ -536,19 +536,21 @@ void FPDF_ExtractImageData(CPDF_Page* pPage, CPDF_ImageObject* imgObj, std::vect
     int width = pBitmap->GetWidth();
     int height = pBitmap->GetHeight();
     int stride = pBitmap->GetPitch();
-    const unsigned char* buffer = static_cast<const unsigned char*>(pBitmap->GetBuffer());
+    auto buffer = pdfium::make_span(
+        static_cast<const uint8_t*>(pBitmap->GetBuffer()),
+        stride * height);
     switch (format) {
-        case FXDIB_8bppRgb:
-        case FXDIB_8bppMask:
+        case FXDIB_Format::k8bppRgb:
+        case FXDIB_Format::k8bppMask:
             png_encoding = image_diff_png::EncodeGrayPNG(buffer, width, height, stride);
             break;
-        case FXDIB_Rgb:
+        case FXDIB_Format::kRgb:
             png_encoding = image_diff_png::EncodeBGRPNG(buffer, width, height, stride);
             break;
-        case FXDIB_Rgb32:
+        case FXDIB_Format::kRgb32:
             png_encoding = image_diff_png::EncodeBGRAPNG(buffer, width, height, stride, true);
             break;
-        case FXDIB_Argb:
+        case FXDIB_Format::kArgb:
             png_encoding = image_diff_png::EncodeBGRAPNG(buffer, width, height, stride, false);
             break;
         default:
@@ -573,14 +575,14 @@ void FPDF_GetImageItem(CPDF_ImageObject* pImageObj, FPDF_IMAGE_ITEM& imageItem, 
     }
 }
 
-void FPDF_ExtractCharGlyph(FPDF_CHAR_INFO& charInfo, std::string& glyph)
+void FPDF_ExtractCharGlyph(const CPDF_TextPage::CharInfo& charInfo, std::string& glyph)
 {
     bool bHasFont = charInfo.m_pTextObj && charInfo.m_pTextObj->GetFont();
     if (!bHasFont)
         return;
-    CPDF_Font* font = charInfo.m_pTextObj->GetFont();
+    RetainPtr<CPDF_Font> font = charInfo.m_pTextObj->GetFont();
     bool bVert = false;
-    int glyph_index = font->GlyphFromCharCode(charInfo.m_Charcode, &bVert);
+    int glyph_index = font->GlyphFromCharCode(charInfo.m_CharCode, &bVert);
     CFX_Font* cfx_font = font->GetFont();
     if (nullptr == cfx_font)
         return;
@@ -659,7 +661,7 @@ void FPDF_GenGlyphKey(std::string& faceName, std::string text, std::string& key)
     key = fontName + "-" + text;
 }
 
-void FPDF_SaveGlyphs(FPDF_CHAR_INFO& charInfo, FPDF_CHAR_ITEM& charItem, FPDF_PAGE_ITEM& pageObj, std::string& faceName) {
+void FPDF_SaveGlyphs(const CPDF_TextPage::CharInfo& charInfo, FPDF_CHAR_ITEM& charItem, FPDF_PAGE_ITEM& pageObj, std::string& faceName) {
     if (faceName.size() < 1)
         return;
     std::string key;
@@ -708,17 +710,17 @@ void FPDF_ProcessImageObject(
     return;
 }
 
-void FPDF_InitTextItem(FPDF_TEXT_ITEM& textItem, CPDF_Page* pPage, FPDF_CHAR_INFO& charInfo) {
+void FPDF_InitTextItem(FPDF_TEXT_ITEM& textItem, CPDF_Page* pPage, const CPDF_TextPage::CharInfo& charInfo) {
     if (pPage == nullptr)
         return;
     FPDF_GetTextStyle(charInfo, textItem);
-    CPDF_TextObject* pTextObj = charInfo.m_pTextObj ? charInfo.m_pTextObj.Get() : nullptr;
+    const CPDF_TextObject* pTextObj = charInfo.m_pTextObj ? charInfo.m_pTextObj.Get() : nullptr;
     FPDF_GetPageObjectBBox(pTextObj, textItem.bbox, pPage);
     FPDF_GetPageObjectClipBox(pTextObj, textItem.clipBox, pPage);
     FPDF_GetColor(pTextObj, textItem.fillColor, textItem.strokeColor);
 }
 
-inline bool FPDF_IsWatermarkText(FPDF_CHAR_INFO& charInfo) {
+inline bool FPDF_IsWatermarkText(const CPDF_TextPage::CharInfo& charInfo) {
     if ((fabs(charInfo.m_Matrix.b * 1000) < 1 && fabs(charInfo.m_Matrix.c * 1000) < 1) ||
         charInfo.m_Matrix.Is90Rotated()) {
         return false;
@@ -728,21 +730,20 @@ inline bool FPDF_IsWatermarkText(FPDF_CHAR_INFO& charInfo) {
 
 int FPDF_GetTextRotation(CPDF_TextObject* pTextObj, CFX_Matrix* formMatrix) {
     // counterclockwise rotation angle
-    double a = 0, b = 0, c = 0, d = 0, e = 0, f = 0;
     CFX_Matrix textMatrix;
     if (formMatrix == nullptr) {
         textMatrix = pTextObj->GetTextMatrix();
     } else {
         textMatrix = pTextObj->GetTextMatrix() * (*formMatrix);
     }
-    std::tie(a, b, c, d, e, f) = textMatrix.AsTuple();
-    if (fabs(b * 1000) < fabs(a) && fabs(c * 1000) < fabs(d)) {
-        return a * pTextObj->m_TextState.GetTextHorzScale() > 0 ? 0 : 180;
+    CFX_Matrix& m = textMatrix;
+    if (fabs(m.b * 1000) < fabs(m.a) && fabs(m.c * 1000) < fabs(m.d)) {
+        return m.a * pTextObj->m_TextState.GetTextHorzScale() > 0 ? 0 : 180;
     }
-    if (fabs(a * 1000) < fabs(b) && fabs(d * 1000) < fabs(c)) {
-        return b > 0 ? 90 : 270;
+    if (fabs(m.a * 1000) < fabs(m.b) && fabs(m.d * 1000) < fabs(m.c)) {
+        return m.b > 0 ? 90 : 270;
     }
-    return int(acos(a) * 180 / M_PI);
+    return int(acos(m.a) * 180 / M_PI);
 }
 
 void FPDF_CountTextsRotation(CPDF_TextObject* pTextObj,
@@ -801,9 +802,8 @@ bool FPDF_ProcessTextObject(
     bool creat_text_item = true;
     for (int &char_idx : chars_indices) {
         FPDF_CHAR_ITEM charItem;
-        FPDF_CHAR_INFO charInfo;
         std::string faceName;
-        textPage->GetCharInfo(char_idx, &charInfo);
+        const CPDF_TextPage::CharInfo& charInfo = textPage->GetCharInfo(char_idx);
         FPDF_GetCharItem(charInfo, charItem, pPage);
         if (charInfo.m_Unicode >= 0xD800 && charInfo.m_Unicode <= 0xDBFF) { // high surrogate
             spHigh = charInfo.m_Unicode;
@@ -866,9 +866,8 @@ void FPDF_FillPageTexts(CPDF_Page* pPage, CPDF_TextPage* textPage, FPDF_PAGE_ITE
             wchar_t spHigh = 0;
             for (int index = start_index + 1; index < end_index; ++index) {
                 FPDF_CHAR_ITEM charItem;
-                FPDF_CHAR_INFO charInfo;
                 std::string faceName;
-                textPage->GetCharInfo(index, &charInfo);
+                const CPDF_TextPage::CharInfo& charInfo = textPage->GetCharInfo(index);
                 // remove watermark texts
                 if (FPDF_IsWatermarkText(charInfo))
                     continue;
@@ -952,20 +951,18 @@ void FPDF_GenTextObjectChars(CPDF_TextPage* pTextPage, FPDF_TEXT_OBJ_CHARS& text
     if (pTextPage == nullptr)
         return;
     for (int i = 0; i < pTextPage->CountChars(); ++i) {
-        FPDF_CHAR_INFO charInfo;
-        pTextPage->GetCharInfo(i, &charInfo);
+        const CPDF_TextPage::CharInfo& charInfo = pTextPage->GetCharInfo(i);
         // remove watermark texts
         if (FPDF_IsWatermarkText(charInfo))
             continue;
-        CPDF_TextObject* pTextObj = charInfo.m_pTextObj.Get();
+        const CPDF_TextObject* pTextObj = charInfo.m_pTextObj.Get();
         if (pTextObj == nullptr)
             continue;
 
         wchar_t spHigh = 0;
         if (charInfo.m_Unicode >= 0xD800 && charInfo.m_Unicode <= 0xDBFF) { // high surrogate
             spHigh = charInfo.m_Unicode;
-            FPDF_CHAR_INFO nextCharInfo;
-            pTextPage->GetCharInfo(i + 1, &nextCharInfo);
+            const CPDF_TextPage::CharInfo& nextCharInfo = pTextPage->GetCharInfo(i + 1);
             if (nextCharInfo.m_Unicode < 0xDC00 || nextCharInfo.m_Unicode > 0xDFFF)
                 // not low surrogate
                 continue;
@@ -1028,10 +1025,7 @@ void FPDF_ProcessObject(CPDF_Page* pPage, FPDF_PAGE_ITEM& pageObj, bool saveGlyp
     if (pPage->begin() == pPage->end())
         return;
     CPDF_ViewerPreferences viewRef(pPage->GetDocument());
-    CPDF_TextPage* textPage = new CPDF_TextPage(
-        pPage, viewRef.IsDirectionR2L() ? FPDFText_Direction::Right : FPDFText_Direction::Left);
-    textPage->setNeedTransformClipPath(true);
-    textPage->ParseTextPage();
+    CPDF_TextPage* textPage = new CPDF_TextPage(pPage, viewRef.IsDirectionR2L(), true);
 
     std::vector<int> paths_index;
     std::vector<int> images_index;
@@ -1267,8 +1261,10 @@ bool WriteToPng(FPDF_STRING path,
         return false;
     }
 
-    std::vector<unsigned char> png_encoding;
-    const auto* buffer = static_cast<const unsigned char*>(buffer_void);
+    std::vector<uint8_t> png_encoding;
+    auto buffer = pdfium::make_span(
+        static_cast<const uint8_t*>(buffer_void),
+        stride * height);
     png_encoding = image_diff_png::EncodeBGRAPNG(buffer, width, height, stride, false);
     if (png_encoding.empty()) {
         fprintf(stderr, "Failed to convert bitmap to PNG\n");
@@ -1290,7 +1286,7 @@ bool WriteToPng(FPDF_STRING path,
     return true;
 }
 
-bool GetPngData(std::vector<unsigned char>& png_encoding,
+bool GetPngData(std::vector<uint8_t>& png_encoding,
                 const void* buffer_void,
                 int stride,
                 int width,
@@ -1299,7 +1295,9 @@ bool GetPngData(std::vector<unsigned char>& png_encoding,
         return false;
     }
 
-    const auto* buffer = static_cast<const unsigned char*>(buffer_void);
+    auto buffer = pdfium::make_span(
+        static_cast<const uint8_t*>(buffer_void),
+        stride * height);
     png_encoding = image_diff_png::EncodeBGRAPNG(buffer, width, height, stride, false);
     if (png_encoding.empty()) {
         fprintf(stderr, "Failed to convert bitmap to PNG\n");
@@ -1312,7 +1310,7 @@ void FPDF_RenderWidgetAnnotation(FPDF_PAGE page, FPDF_BITMAP bitmap, int width, 
     CPDF_Page* pPage = CPDFPageFromFPDFPage(page);
     if (!pPage)
         return;
-    auto pOwnedList = pdfium::MakeUnique<CPDF_AnnotList>(pPage);
+    auto pOwnedList = std::make_unique<CPDF_AnnotList>(pPage);
     CPDF_AnnotList* pList = pOwnedList.get();
     bool bIncludeWidget = false;
     for (const auto& pAnnot : pList->All()) {
@@ -1411,7 +1409,7 @@ FPDF_EXPORT bool FPDF_CALLCONV
 FPDF_ExtractFont(FPDF_DOCUMENT document, FPDF_STRING font_name, FPDF_STRING save_path)
 {
     CPDF_Document* pDoc = CPDFDocumentFromFPDFDocument(document);
-    CPDF_Font* font = CPDF_Font::GetStockFont(pDoc, font_name);
+    RetainPtr<CPDF_Font>font = CPDF_Font::GetStockFont(pDoc, font_name);
     if(!font) {
         return false;
     }
@@ -1710,7 +1708,12 @@ FPDF_GetFPDFPageMatrix(FPDF_PAGE page, double* a, double* b, double* c, double* 
         return false;
     CFX_Matrix cfx_matrix;
     FPDF_GetPageMatrix(pPage, cfx_matrix);
-    std::tie(*a, *b, *c, *d, *e, *f) = cfx_matrix.AsTuple();
+    *a = cfx_matrix.a;
+    *b = cfx_matrix.b;
+    *c = cfx_matrix.c;
+    *d = cfx_matrix.d;
+    *e = cfx_matrix.e;
+    *f = cfx_matrix.f;
     return true;
 }
 

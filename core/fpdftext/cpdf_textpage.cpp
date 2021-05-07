@@ -292,6 +292,14 @@ CPDF_TextPage::CPDF_TextPage(const CPDF_Page* pPage, bool rtl)
   Init();
 }
 
+CPDF_TextPage::CPDF_TextPage(const CPDF_Page* pPage, bool rtl, bool bNeedTransformClipPath)
+    : m_pPage(pPage), 
+      m_rtl(rtl), 
+      m_DisplayMatrix(GetPageMatrix(pPage)), 
+      m_bNeedTransformClipPath(bNeedTransformClipPath) {
+  Init();
+}
+
 CPDF_TextPage::~CPDF_TextPage() = default;
 
 void CPDF_TextPage::Init() {
@@ -771,6 +779,10 @@ void CPDF_TextPage::ProcessTextObject(
     CPDF_PageObjectHolder::const_iterator ObjPos) {
   if (fabs(pTextObj->GetRect().Width()) < kSizeEpsilon)
     return;
+
+  if (m_bNeedTransformClipPath) {
+    pTextObj->TransformClipPath(formMatrix);
+  }
 
   size_t count = mTextObjects.size();
   TransformedTextObject new_obj;

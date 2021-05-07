@@ -44,7 +44,7 @@ typedef struct _FPDF_PNG_ENCODING_ {
     FPDF_EXPORT ~_FPDF_PNG_ENCODING_();
     FPDF_EXPORT _FPDF_PNG_ENCODING_(const _FPDF_PNG_ENCODING_& other);
     FPDF_EXPORT _FPDF_PNG_ENCODING_& operator=(const _FPDF_PNG_ENCODING_& other);
-    std::vector<unsigned char> png_encoding;
+    std::vector<uint8_t> png_encoding;
 } FPDF_PNG_ENCODING;
 
 typedef struct _FPDF_RECT_ {
@@ -97,7 +97,7 @@ typedef struct _FPDF_CHAR_ITEM_ {
     FPDF_RECT charBox;
     FPDF_RECT fontBox;
     std::string text;
-    int flag;
+    uint8_t flag;
 } FPDF_CHAR_ITEM;
 
 typedef struct _FPDF_TEXT_ITEM_ {
@@ -131,7 +131,7 @@ typedef struct _FPDF_PATH_ITEM_ {
     FPDF_RECT clipBox;
     bool isRect;
     bool isStroke;
-    int fillType;
+    uint8_t fillType;
     float width;
     FPDF_COLOR fillColor;
     FPDF_COLOR strokeColor;
@@ -148,7 +148,7 @@ typedef struct _FPDF_IMAGE_ITEM_ {
     FPDF_RECT clipBox;
     FPDF_COLOR fillColor;
     FPDF_COLOR strokeColor;
-    std::vector<unsigned char> png_encoding;
+    std::vector<uint8_t> png_encoding;
     int z_index;
 } FPDF_IMAGE_ITEM;
 

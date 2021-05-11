@@ -212,10 +212,12 @@ shared_library("pdfium") {
   }
 
   if (is_mac) {
+    libs += [
+      "iconv",
+    ]
     frameworks = [
       "AppKit.framework",
       "CoreFoundation.framework",
-      "iconv",
     ]
   }
 

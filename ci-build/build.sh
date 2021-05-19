@@ -43,7 +43,7 @@ PDFium_ARTIFACT="$PWD/pdfium-$OS.tgz"
 
 
 # Download depot_tools
-curl -O depot_tools.zip $DepotTools_URL
+curl -O $DepotTools_URL
 unzip depot_tools.zip -d $DepotTools_DIR
 export PATH="$DepotTools_DIR:$PATH"
 

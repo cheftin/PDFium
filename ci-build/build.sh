@@ -22,7 +22,7 @@ PDFium_SOURCE_REVIISON=unknown
 CONFIGURATION='Release'
 # CONFIGURATION='Debug'
 
-DepotTools_URL='https://cxan.kdr2.com/misc/depot_tools-f9eef45d.zip'
+DepotTools_URL='https://storage.googleapis.com/chrome-infra/depot_tools.zip'
 DepotTools_DIR="$PWD/depot_tools"
 
 PDFium_URL='https://github.com/PaodingAI/PDFium.git' # or git@github.com:PaodingAI/PDFium.git
@@ -43,8 +43,8 @@ PDFium_ARTIFACT="$PWD/pdfium-$OS.tgz"
 
 
 # Download depot_tools
-curl -O $DepotTools_URL
-unzip depot_tools-f9eef45d.zip
+curl -O depot_tools.zip $DepotTools_URL
+unzip depot_tools.zip -d $DepotTools_DIR
 export PATH="$DepotTools_DIR:$PATH"
 
 # Clone

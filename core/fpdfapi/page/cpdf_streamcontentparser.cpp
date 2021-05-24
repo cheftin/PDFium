@@ -36,6 +36,7 @@
 #include "core/fpdfapi/parser/fpdf_parser_utility.h"
 #include "core/fxcrt/autonuller.h"
 #include "core/fxcrt/fx_safe_types.h"
+#include "core/fxcrt/scoped_set_insertion.h"
 #include "core/fxge/cfx_graphstatedata.h"
 #include "third_party/base/check.h"
 #include "third_party/base/no_destructor.h"
@@ -869,13 +870,13 @@ void CPDF_StreamContentParser::Handle_EOFillPath() {
 
 void CPDF_StreamContentParser::Handle_SetGray_Fill() {
   RetainPtr<CPDF_ColorSpace> pCS =
-      CPDF_ColorSpace::GetStockCS(PDFCS_DEVICEGRAY);
+      CPDF_ColorSpace::GetStockCS(CPDF_ColorSpace::Family::kDeviceGray);
   m_pCurStates->m_ColorState.SetFillColor(pCS, GetNumbers(1));
 }
 
 void CPDF_StreamContentParser::Handle_SetGray_Stroke() {
   RetainPtr<CPDF_ColorSpace> pCS =
-      CPDF_ColorSpace::GetStockCS(PDFCS_DEVICEGRAY);
+      CPDF_ColorSpace::GetStockCS(CPDF_ColorSpace::Family::kDeviceGray);
   m_pCurStates->m_ColorState.SetStrokeColor(pCS, GetNumbers(1));
 }
 
@@ -920,7 +921,7 @@ void CPDF_StreamContentParser::Handle_SetCMYKColor_Fill() {
     return;
 
   RetainPtr<CPDF_ColorSpace> pCS =
-      CPDF_ColorSpace::GetStockCS(PDFCS_DEVICECMYK);
+      CPDF_ColorSpace::GetStockCS(CPDF_ColorSpace::Family::kDeviceCMYK);
   m_pCurStates->m_ColorState.SetFillColor(pCS, GetNumbers(4));
 }
 
@@ -929,7 +930,7 @@ void CPDF_StreamContentParser::Handle_SetCMYKColor_Stroke() {
     return;
 
   RetainPtr<CPDF_ColorSpace> pCS =
-      CPDF_ColorSpace::GetStockCS(PDFCS_DEVICECMYK);
+      CPDF_ColorSpace::GetStockCS(CPDF_ColorSpace::Family::kDeviceCMYK);
   m_pCurStates->m_ColorState.SetStrokeColor(pCS, GetNumbers(4));
 }
 
@@ -990,7 +991,8 @@ void CPDF_StreamContentParser::Handle_SetRGBColor_Fill() {
   if (m_ParamCount != 3)
     return;
 
-  RetainPtr<CPDF_ColorSpace> pCS = CPDF_ColorSpace::GetStockCS(PDFCS_DEVICERGB);
+  RetainPtr<CPDF_ColorSpace> pCS =
+      CPDF_ColorSpace::GetStockCS(CPDF_ColorSpace::Family::kDeviceRGB);
   m_pCurStates->m_ColorState.SetFillColor(pCS, GetNumbers(3));
 }
 
@@ -998,7 +1000,8 @@ void CPDF_StreamContentParser::Handle_SetRGBColor_Stroke() {
   if (m_ParamCount != 3)
     return;
 
-  RetainPtr<CPDF_ColorSpace> pCS = CPDF_ColorSpace::GetStockCS(PDFCS_DEVICERGB);
+  RetainPtr<CPDF_ColorSpace> pCS =
+      CPDF_ColorSpace::GetStockCS(CPDF_ColorSpace::Family::kDeviceRGB);
   m_pCurStates->m_ColorState.SetStrokeColor(pCS, GetNumbers(3));
 }
 
@@ -1149,20 +1152,21 @@ RetainPtr<CPDF_Font> CPDF_StreamContentParser::FindFont(
 RetainPtr<CPDF_ColorSpace> CPDF_StreamContentParser::FindColorSpace(
     const ByteString& name) {
   if (name == "Pattern")
-    return CPDF_ColorSpace::GetStockCS(PDFCS_PATTERN);
+    return CPDF_ColorSpace::GetStockCS(CPDF_ColorSpace::Family::kPattern);
 
   if (name == "DeviceGray" || name == "DeviceCMYK" || name == "DeviceRGB") {
     ByteString defname = "Default";
     defname += name.Last(name.GetLength() - 7);
     const CPDF_Object* pDefObj = FindResourceObj("ColorSpace", defname);
     if (!pDefObj) {
-      if (name == "DeviceGray")
-        return CPDF_ColorSpace::GetStockCS(PDFCS_DEVICEGRAY);
-
+      if (name == "DeviceGray") {
+        return CPDF_ColorSpace::GetStockCS(
+            CPDF_ColorSpace::Family::kDeviceGray);
+      }
       if (name == "DeviceRGB")
-        return CPDF_ColorSpace::GetStockCS(PDFCS_DEVICERGB);
+        return CPDF_ColorSpace::GetStockCS(CPDF_ColorSpace::Family::kDeviceRGB);
 
-      return CPDF_ColorSpace::GetStockCS(PDFCS_DEVICECMYK);
+      return CPDF_ColorSpace::GetStockCS(CPDF_ColorSpace::Family::kDeviceCMYK);
     }
     return CPDF_DocPageData::FromDocument(m_pDocument.Get())
         ->GetColorSpace(pDefObj, nullptr);
@@ -1499,8 +1503,8 @@ uint32_t CPDF_StreamContentParser::Parse(
 
   m_StreamStartOffsets = stream_start_offsets;
 
-  pdfium::ScopedSetInsertion<const uint8_t*> scopedInsert(m_ParsedSet.Get(),
-                                                          pDataStart);
+  ScopedSetInsertion<const uint8_t*> scopedInsert(m_ParsedSet.Get(),
+                                                  pDataStart);
 
   uint32_t init_obj_count = m_pObjectHolder->GetPageObjectCount();
   AutoNuller<std::unique_ptr<CPDF_StreamParser>> auto_clearer(&m_pSyntax);

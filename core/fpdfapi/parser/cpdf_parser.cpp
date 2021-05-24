@@ -28,6 +28,7 @@
 #include "core/fxcrt/fx_extension.h"
 #include "core/fxcrt/fx_memory_wrappers.h"
 #include "core/fxcrt/fx_safe_types.h"
+#include "core/fxcrt/scoped_set_insertion.h"
 #include "third_party/base/check.h"
 #include "third_party/base/check_op.h"
 #include "third_party/base/notreached.h"
@@ -865,7 +866,7 @@ RetainPtr<CPDF_Object> CPDF_Parser::ParseIndirectObject(uint32_t objnum) {
   if (pdfium::Contains(m_ParsingObjNums, objnum))
     return nullptr;
 
-  pdfium::ScopedSetInsertion<uint32_t> local_insert(&m_ParsingObjNums, objnum);
+  ScopedSetInsertion<uint32_t> local_insert(&m_ParsingObjNums, objnum);
   if (GetObjectType(objnum) == ObjectType::kNotCompressed) {
     FX_FILESIZE pos = GetObjectPositionOrZero(objnum);
     if (pos <= 0)
@@ -888,9 +889,6 @@ const CPDF_ObjectStream* CPDF_Parser::GetObjectStream(uint32_t object_number) {
   if (pdfium::Contains(m_ParsingObjNums, object_number))
     return nullptr;
 
-  pdfium::ScopedSetInsertion<uint32_t> local_insert(&m_ParsingObjNums,
-                                                    object_number);
-
   auto it = m_ObjectStreamMap.find(object_number);
   if (it != m_ObjectStreamMap.end())
     return it->second.get();
@@ -902,6 +900,9 @@ const CPDF_ObjectStream* CPDF_Parser::GetObjectStream(uint32_t object_number) {
   const FX_FILESIZE object_pos = info->pos;
   if (object_pos <= 0)
     return nullptr;
+
+  // Keep track of `object_number` before doing more parsing.
+  ScopedSetInsertion<uint32_t> local_insert(&m_ParsingObjNums, object_number);
 
   RetainPtr<CPDF_Object> object =
       ParseIndirectObjectAt(object_pos, object_number);

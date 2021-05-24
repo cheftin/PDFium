@@ -265,25 +265,24 @@ void CPDFSDK_Widget::Synchronize(bool bSynchronizeElse) {
     case FormFieldType::kCheckBox:
     case FormFieldType::kRadioButton: {
       CPDF_FormControl* pFormCtrl = GetFormControl();
-      XFA_CHECKSTATE eCheckState =
-          pFormCtrl->IsChecked() ? XFA_CHECKSTATE_On : XFA_CHECKSTATE_Off;
+      XFA_CheckState eCheckState =
+          pFormCtrl->IsChecked() ? XFA_CheckState::kOn : XFA_CheckState::kOff;
       node->SetCheckState(eCheckState);
       break;
     }
     case FormFieldType::kTextField:
-      node->SetValue(XFA_VALUEPICTURE_Edit, pFormField->GetValue());
+      node->SetValue(XFA_ValuePicture::kEdit, pFormField->GetValue());
       break;
     case FormFieldType::kComboBox:
     case FormFieldType::kListBox: {
       node->ClearAllSelections();
-
       for (int i = 0; i < pFormField->CountSelectedItems(); ++i) {
         int nIndex = pFormField->GetSelectedIndex(i);
         if (nIndex > -1 && nIndex < node->CountChoiceListItems(false))
           node->SetItemState(nIndex, true, false, false, true);
       }
       if (GetFieldType() == FormFieldType::kComboBox)
-        node->SetValue(XFA_VALUEPICTURE_Edit, pFormField->GetValue());
+        node->SetValue(XFA_ValuePicture::kEdit, pFormField->GetValue());
       break;
     }
     default:
@@ -427,36 +426,36 @@ WideString CPDFSDK_Widget::GetName() const {
 #endif  // PDF_ENABLE_XFA
 
 Optional<FX_COLORREF> CPDFSDK_Widget::GetFillColor() const {
-  CPDF_FormControl* pFormCtrl = GetFormControl();
-  int iColorType = 0;
-  FX_COLORREF color = ArgbToColorRef(pFormCtrl->GetBackgroundColor(iColorType));
-  if (iColorType == CFX_Color::kTransparent)
-    return {};
-  return color;
+  std::pair<CFX_Color::Type, FX_ARGB> type_argb_pair =
+      GetFormControl()->GetBackgroundColor();
+
+  if (type_argb_pair.first == CFX_Color::Type::kTransparent)
+    return pdfium::nullopt;
+
+  return ArgbToColorRef(type_argb_pair.second);
 }
 
 Optional<FX_COLORREF> CPDFSDK_Widget::GetBorderColor() const {
-  CPDF_FormControl* pFormCtrl = GetFormControl();
-  int iColorType = 0;
-  FX_COLORREF color = ArgbToColorRef(pFormCtrl->GetBorderColor(iColorType));
-  if (iColorType == CFX_Color::kTransparent)
-    return {};
-  return color;
+  std::pair<CFX_Color::Type, FX_ARGB> type_argb_pair =
+      GetFormControl()->GetBorderColorARGB();
+  if (type_argb_pair.first == CFX_Color::Type::kTransparent)
+    return pdfium::nullopt;
+
+  return ArgbToColorRef(type_argb_pair.second);
 }
 
 Optional<FX_COLORREF> CPDFSDK_Widget::GetTextColor() const {
-  CPDF_FormControl* pFormCtrl = GetFormControl();
-  CPDF_DefaultAppearance da = pFormCtrl->GetDefaultAppearance();
-  FX_ARGB argb;
-  Optional<CFX_Color::Type> iColorType;
-  std::tie(iColorType, argb) = da.GetColor();
-  if (!iColorType.has_value())
-    return {};
+  CPDF_DefaultAppearance da = GetFormControl()->GetDefaultAppearance();
+  Optional<std::pair<CFX_Color::Type, FX_ARGB>> maybe_type_argb_pair =
+      da.GetColorARGB();
 
-  FX_COLORREF color = ArgbToColorRef(argb);
-  if (iColorType.value() == CFX_Color::kTransparent)
-    return {};
-  return color;
+  if (!maybe_type_argb_pair.has_value())
+    return pdfium::nullopt;
+
+  if (maybe_type_argb_pair.value().first == CFX_Color::Type::kTransparent)
+    return pdfium::nullopt;
+
+  return ArgbToColorRef(maybe_type_argb_pair.value().second);
 }
 
 float CPDFSDK_Widget::GetFontSize() const {
@@ -486,7 +485,7 @@ WideString CPDFSDK_Widget::GetValue() const {
   if (CXFA_FFWidget* hWidget = GetMixXFAWidget()) {
     CXFA_Node* node = hWidget->GetNode();
     if (node->IsWidgetReady())
-      return node->GetValue(XFA_VALUEPICTURE_Display);
+      return node->GetValue(XFA_ValuePicture::kDisplay);
   }
 #endif  // PDF_ENABLE_XFA
   CPDF_FormField* pFormField = GetFormField();
@@ -534,7 +533,7 @@ bool CPDFSDK_Widget::IsChecked() const {
   if (CXFA_FFWidget* hWidget = GetMixXFAWidget()) {
     CXFA_Node* node = hWidget->GetNode();
     if (node->IsWidgetReady())
-      return node->GetCheckState() == XFA_CHECKSTATE_On;
+      return node->GetCheckState() == XFA_CheckState::kOn;
   }
 #endif  // PDF_ENABLE_XFA
   CPDF_FormControl* pFormCtrl = GetFormControl();
@@ -778,43 +777,19 @@ CFX_Matrix CPDFSDK_Widget::GetMatrix() const {
 }
 
 CFX_Color CPDFSDK_Widget::GetTextPWLColor() const {
-  CFX_Color crText = CFX_Color(CFX_Color::kGray, 0);
-
   CPDF_FormControl* pFormCtrl = GetFormControl();
-  CPDF_DefaultAppearance da = pFormCtrl->GetDefaultAppearance();
-
-  float fc[4];
-  Optional<CFX_Color::Type> iColorType = da.GetColor(fc);
-  if (iColorType)
-    crText = CFX_Color(*iColorType, fc[0], fc[1], fc[2], fc[3]);
-
-  return crText;
+  Optional<CFX_Color> crText = pFormCtrl->GetDefaultAppearance().GetColor();
+  return crText.value_or(CFX_Color(CFX_Color::Type::kGray, 0));
 }
 
 CFX_Color CPDFSDK_Widget::GetBorderPWLColor() const {
-  CFX_Color crBorder;
-
   CPDF_FormControl* pFormCtrl = GetFormControl();
-  int32_t iColorType;
-  float fc[4];
-  pFormCtrl->GetOriginalBorderColor(iColorType, fc);
-  if (iColorType > 0)
-    crBorder = CFX_Color(iColorType, fc[0], fc[1], fc[2], fc[3]);
-
-  return crBorder;
+  return pFormCtrl->GetOriginalBorderColor();
 }
 
 CFX_Color CPDFSDK_Widget::GetFillPWLColor() const {
-  CFX_Color crFill;
-
   CPDF_FormControl* pFormCtrl = GetFormControl();
-  int32_t iColorType;
-  float fc[4];
-  pFormCtrl->GetOriginalBackgroundColor(iColorType, fc);
-  if (iColorType > 0)
-    crFill = CFX_Color(iColorType, fc[0], fc[1], fc[2], fc[3]);
-
-  return crFill;
+  return pFormCtrl->GetOriginalBackgroundColor();
 }
 
 bool CPDFSDK_Widget::OnAAction(CPDF_AAction::AActionType type,

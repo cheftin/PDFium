@@ -491,7 +491,7 @@ void CPWL_Wnd::CreateVScrollBar(const CreateParams& cp) {
   CreateParams scp = cp;
   scp.dwFlags = PWS_BACKGROUND | PWS_AUTOTRANSPARENT | PWS_NOREFRESHCLIP;
   scp.sBackgroundColor = PWL_DEFAULT_WHITECOLOR;
-  scp.eCursorType = FXCT_ARROW;
+  scp.eCursorType = IPWL_SystemHandler::CursorStyle::kArrow;
   scp.nTransparency = PWL_SCROLLBAR_TRANSPARENCY;
 
   auto pBar = std::make_unique<CPWL_ScrollBar>(scp, CloneAttachedData());
@@ -664,9 +664,9 @@ void CPWL_Wnd::SetFontSize(float fFontSize) {
 CFX_Color CPWL_Wnd::GetBorderLeftTopColor(BorderStyle nBorderStyle) const {
   switch (nBorderStyle) {
     case BorderStyle::kBeveled:
-      return CFX_Color(CFX_Color::kGray, 1);
+      return CFX_Color(CFX_Color::Type::kGray, 1);
     case BorderStyle::kInset:
-      return CFX_Color(CFX_Color::kGray, 0.5f);
+      return CFX_Color(CFX_Color::Type::kGray, 0.5f);
     default:
       return CFX_Color();
   }
@@ -677,7 +677,7 @@ CFX_Color CPWL_Wnd::GetBorderRightBottomColor(BorderStyle nBorderStyle) const {
     case BorderStyle::kBeveled:
       return GetBackgroundColor() / 2.0f;
     case BorderStyle::kInset:
-      return CFX_Color(CFX_Color::kGray, 0.75f);
+      return CFX_Color(CFX_Color::Type::kGray, 0.75f);
     default:
       return CFX_Color();
   }

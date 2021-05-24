@@ -521,7 +521,7 @@ bool CFXJSE_ResolveProcessor::ResolveNormal(v8::Isolate* pIsolate,
 bool CFXJSE_ResolveProcessor::ResolveAsterisk(CFXJSE_ResolveNodeData& rnd) {
   CXFA_Node* curNode = ToNode(rnd.m_CurObject.Get());
   std::vector<CXFA_Node*> array = curNode->GetNodeListWithFilter(
-      XFA_NODEFILTER_Children | XFA_NODEFILTER_Properties);
+      XFA_NodeFilter_Children | XFA_NodeFilter_Properties);
   rnd.m_Result.objects.insert(rnd.m_Result.objects.end(), array.begin(),
                               array.end());
   return !rnd.m_Result.objects.empty();
@@ -730,18 +730,13 @@ void CFXJSE_ResolveProcessor::SetStylesForChild(uint32_t dwParentStyles,
   rnd.m_dwStyles = dwSubStyles;
 }
 
-void CFXJSE_ResolveProcessor::SetIndexDataBind(WideString& wsNextCondition,
-                                               int32_t& iIndex,
-                                               int32_t iCount) {
-  if (m_pNodeHelper->CreateNodeForCondition(wsNextCondition)) {
-    if (m_pNodeHelper->m_eLastCreateType == XFA_Element::DataGroup) {
-      iIndex = 0;
-    } else {
-      iIndex = iCount - 1;
-    }
-  } else {
-    iIndex = iCount - 1;
+int32_t CFXJSE_ResolveProcessor::IndexForDataBind(WideString& wsNextCondition,
+                                                  int32_t iCount) {
+  if (m_pNodeHelper->CreateNodeForCondition(wsNextCondition) &&
+      m_pNodeHelper->m_eLastCreateType == XFA_Element::DataGroup) {
+    return 0;
   }
+  return iCount - 1;
 }
 
 CFXJSE_ResolveNodeData::CFXJSE_ResolveNodeData(CFXJSE_Engine* pSC)

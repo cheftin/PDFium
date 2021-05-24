@@ -56,14 +56,6 @@ struct PWL_SCROLL_INFO;
 // combobox styles
 #define PCBS_ALLOWCUSTOMTEXT 0x0001L
 
-// Cursor style. These must match the values in public/fpdf_formfill.h
-#define FXCT_ARROW 0
-#define FXCT_NESW 1
-#define FXCT_NWSE 2
-#define FXCT_VBEAM 3
-#define FXCT_HBEAM 4
-#define FXCT_HAND 5
-
 struct CPWL_Dash {
   CPWL_Dash() : nDash(0), nGap(0), nPhase(0) {}
   CPWL_Dash(int32_t dash, int32_t gap, int32_t phase)
@@ -82,8 +74,8 @@ struct CPWL_Dash {
 
 #define PWL_SCROLLBAR_WIDTH 12.0f
 #define PWL_SCROLLBAR_TRANSPARENCY 150
-#define PWL_DEFAULT_BLACKCOLOR CFX_Color(CFX_Color::kGray, 0)
-#define PWL_DEFAULT_WHITECOLOR CFX_Color(CFX_Color::kGray, 1)
+#define PWL_DEFAULT_BLACKCOLOR CFX_Color(CFX_Color::Type::kGray, 0)
+#define PWL_DEFAULT_WHITECOLOR CFX_Color(CFX_Color::Type::kGray, 1)
 
 class CPWL_Wnd : public Observable {
  public:
@@ -102,6 +94,7 @@ class CPWL_Wnd : public Observable {
     virtual void OnSetFocus(CPWL_Edit* pEdit) = 0;
   };
 
+  // Caller-provided options for window creation.
   class CreateParams {
    public:
     CreateParams();
@@ -114,6 +107,7 @@ class CPWL_Wnd : public Observable {
     UnownedPtr<IPWL_SystemHandler> pSystemHandler;
     UnownedPtr<IPVT_FontMap> pFontMap;
     ObservedPtr<ProviderIface> pProvider;
+
     // Optional:
     UnownedPtr<FocusHandlerIface> pFocusHandler;
     uint32_t dwFlags = 0;
@@ -125,9 +119,11 @@ class CPWL_Wnd : public Observable {
     int32_t nTransparency = 255;
     float fFontSize;
     CPWL_Dash sDash;
-    // Ignore:
+
+    // Ignore, used internally only:
     CPWL_MsgControl* pMsgControl = nullptr;
-    int32_t eCursorType = FXCT_ARROW;
+    IPWL_SystemHandler::CursorStyle eCursorType =
+        IPWL_SystemHandler::CursorStyle::kArrow;
   };
 
   static bool IsSHIFTKeyDown(uint32_t nFlag);

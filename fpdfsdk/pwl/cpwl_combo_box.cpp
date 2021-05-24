@@ -165,12 +165,12 @@ void CPWL_ComboBox::CreateButton(const CreateParams& cp) {
 
   CreateParams bcp = cp;
   bcp.dwFlags = PWS_VISIBLE | PWS_BORDER | PWS_BACKGROUND;
-  bcp.sBackgroundColor = CFX_Color(CFX_Color::kRGB, 220.0f / 255.0f,
+  bcp.sBackgroundColor = CFX_Color(CFX_Color::Type::kRGB, 220.0f / 255.0f,
                                    220.0f / 255.0f, 220.0f / 255.0f);
   bcp.sBorderColor = PWL_DEFAULT_BLACKCOLOR;
   bcp.dwBorderWidth = 2;
   bcp.nBorderStyle = BorderStyle::kBeveled;
-  bcp.eCursorType = FXCT_ARROW;
+  bcp.eCursorType = IPWL_SystemHandler::CursorStyle::kArrow;
 
   auto pButton = std::make_unique<CPWL_CBButton>(bcp, CloneAttachedData());
   m_pButton = pButton.get();
@@ -186,16 +186,16 @@ void CPWL_ComboBox::CreateListBox(const CreateParams& cp) {
   lcp.dwFlags = PWS_BORDER | PWS_BACKGROUND | PLBS_HOVERSEL | PWS_VSCROLL;
   lcp.nBorderStyle = BorderStyle::kSolid;
   lcp.dwBorderWidth = 1;
-  lcp.eCursorType = FXCT_ARROW;
+  lcp.eCursorType = IPWL_SystemHandler::CursorStyle::kArrow;
   lcp.rcRectWnd = CFX_FloatRect();
 
   lcp.fFontSize =
       (cp.dwFlags & PWS_AUTOFONTSIZE) ? kComboBoxDefaultFontSize : cp.fFontSize;
 
-  if (cp.sBorderColor.nColorType == CFX_Color::kTransparent)
+  if (cp.sBorderColor.nColorType == CFX_Color::Type::kTransparent)
     lcp.sBorderColor = PWL_DEFAULT_BLACKCOLOR;
 
-  if (cp.sBackgroundColor.nColorType == CFX_Color::kTransparent)
+  if (cp.sBackgroundColor.nColorType == CFX_Color::Type::kTransparent)
     lcp.sBackgroundColor = PWL_DEFAULT_WHITECOLOR;
 
   auto pList = std::make_unique<CPWL_CBListBox>(lcp, CloneAttachedData());

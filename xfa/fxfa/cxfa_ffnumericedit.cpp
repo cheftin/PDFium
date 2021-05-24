@@ -36,7 +36,7 @@ bool CXFA_FFNumericEdit::LoadWidget() {
 
   {
     CFWL_Widget::ScopedUpdateLock update_lock(pWidget);
-    pWidget->SetText(m_pNode->GetValue(XFA_VALUEPICTURE_Display));
+    pWidget->SetText(m_pNode->GetValue(XFA_ValuePicture::kDisplay));
     UpdateWidgetProperty();
   }
 
@@ -70,14 +70,15 @@ void CXFA_FFNumericEdit::UpdateWidgetProperty() {
 void CXFA_FFNumericEdit::OnProcessEvent(CFWL_Event* pEvent) {
   if (pEvent->GetType() == CFWL_Event::Type::Validate) {
     CFWL_EventValidate* event = static_cast<CFWL_EventValidate*>(pEvent);
-    event->bValidate = OnValidate(GetNormalWidget(), event->wsInsert);
+    event->SetValidate(OnValidate(GetNormalWidget(), event->GetInsert()));
     return;
   }
   CXFA_FFTextEdit::OnProcessEvent(pEvent);
 }
 
-bool CXFA_FFNumericEdit::OnValidate(CFWL_Widget* pWidget, WideString& wsText) {
-  WideString wsPattern = m_pNode->GetPictureContent(XFA_VALUEPICTURE_Edit);
+bool CXFA_FFNumericEdit::OnValidate(CFWL_Widget* pWidget,
+                                    const WideString& wsText) {
+  WideString wsPattern = m_pNode->GetPictureContent(XFA_ValuePicture::kEdit);
   if (!wsPattern.IsEmpty())
     return true;
 

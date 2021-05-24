@@ -32,7 +32,7 @@ class CFXJSE_ResolveNodeData {
   WideString m_wsCondition;
   XFA_HashCode m_uHashName = XFA_HASHCODE_None;
   int32_t m_nLevel = 0;
-  uint32_t m_dwStyles = XFA_RESOLVENODE_Children;
+  XFA_ResolveNodeMask m_dwStyles = XFA_RESOLVENODE_Children;
   CFXJSE_Engine::ResolveResult m_Result;
 };
 
@@ -45,9 +45,7 @@ class CFXJSE_ResolveProcessor {
   int32_t GetFilter(WideStringView wsExpression,
                     int32_t nStart,
                     CFXJSE_ResolveNodeData& rnd);
-  void SetIndexDataBind(WideString& wsNextCondition,
-                        int32_t& iIndex,
-                        int32_t iCount);
+  int32_t IndexForDataBind(WideString& wsNextCondition, int32_t iCount);
   void SetCurStart(int32_t start) { m_iCurStart = start; }
 
   CFXJSE_NodeHelper* GetNodeHelper() { return m_pNodeHelper.get(); }

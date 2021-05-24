@@ -181,13 +181,11 @@ void CFWL_DateTimePicker::ModifyEditStylesEx(uint32_t dwStylesExAdded,
 
 void CFWL_DateTimePicker::DrawDropDownButton(CFGAS_GEGraphics* pGraphics,
                                              const CFX_Matrix& mtMatrix) {
-  CFWL_ThemeBackground param;
-  param.m_pWidget = this;
+  CFWL_ThemeBackground param(this, pGraphics);
   param.m_iPart = CFWL_Part::DropDownButton;
   param.m_dwStates = m_iBtnState;
-  param.m_pGraphics = pGraphics;
   param.m_PartRect = m_BtnRect;
-  param.m_matrix.Concat(mtMatrix);
+  param.m_matrix = mtMatrix;
   GetThemeProvider()->DrawBackground(param);
 }
 
@@ -286,10 +284,7 @@ void CFWL_DateTimePicker::ProcessSelChanged(int32_t iYear,
   m_pEdit->Update();
   RepaintRect(m_ClientRect);
 
-  CFWL_EventSelectChanged ev(this);
-  ev.iYear = m_iYear;
-  ev.iMonth = m_iMonth;
-  ev.iDay = m_iDay;
+  CFWL_EventSelectChanged ev(this, m_iYear, m_iMonth, m_iDay);
   DispatchEvent(&ev);
 }
 

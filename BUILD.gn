@@ -42,7 +42,7 @@ config("pdfium_common_config") {
   }
 
   if (is_linux) {
-    ldflags += [ "-static-libstdc++" ]
+    ldflags += [ "-static-libstdc++", "-static-libgcc" ]
   }
 
   if (is_win) {

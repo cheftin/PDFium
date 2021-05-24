@@ -88,6 +88,8 @@ CFX_Color CFX_Color::ConvertColorType(Type nConvertColorType) const {
         case CFX_Color::Type::kCMYK:
           ret = ConvertGRAY2CMYK(fColor1);
           break;
+        default:
+          break;
       }
       break;
     case CFX_Color::Type::kRGB:
@@ -98,6 +100,8 @@ CFX_Color CFX_Color::ConvertColorType(Type nConvertColorType) const {
         case CFX_Color::Type::kCMYK:
           ret = ConvertRGB2CMYK(fColor1, fColor2, fColor3);
           break;
+        default:
+          break;
       }
       break;
     case CFX_Color::Type::kCMYK:
@@ -107,6 +111,8 @@ CFX_Color CFX_Color::ConvertColorType(Type nConvertColorType) const {
           break;
         case CFX_Color::Type::kRGB:
           ret = ConvertCMYK2RGB(fColor1, fColor2, fColor3, fColor4);
+          break;
+        default:
           break;
       }
       break;

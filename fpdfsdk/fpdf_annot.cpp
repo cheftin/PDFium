@@ -441,7 +441,7 @@ FPDFAnnot_GetSubtype(FPDF_ANNOTATION annot) {
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
 FPDFAnnot_IsObjectSupportedSubtype(FPDF_ANNOTATION_SUBTYPE subtype) {
   // The supported subtypes must also be communicated in the user doc.
-  return subtype == FPDF_ANNOT_INK || subtype == FPDF_ANNOT_STAMP;
+  return subtype == FPDF_ANNOT_INK || subtype == FPDF_ANNOT_STAMP || subtype == FPDF_ANNOT_FREETEXT;
 }
 
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV

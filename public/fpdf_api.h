@@ -25,6 +25,7 @@
 #include "fpdfview.h"
 #include "fpdf_save.h"
 #include "fpdf_ppo.h"
+#include "fpdf_annot.h"
 
 // typedef std::vector<FPDF_PAGE_ITEM*> FPDF_PAGE_LIST;
 
@@ -278,6 +279,19 @@ typedef struct _FPDF_RECT_OBJ_INFO {
     unsigned int a;
 } FPDF_RECT_OBJ_INFO;
 
+typedef struct _FPDF_ANNOT_ITEM_ {
+    FPDF_EXPORT _FPDF_ANNOT_ITEM_();
+    FPDF_EXPORT ~_FPDF_ANNOT_ITEM_();
+    FPDF_EXPORT _FPDF_ANNOT_ITEM_(const _FPDF_ANNOT_ITEM_& other);
+    FPDF_EXPORT _FPDF_ANNOT_ITEM_& operator=(const _FPDF_ANNOT_ITEM_& other);
+    int subtype;
+    FPDF_RECT rect;
+    float fontsize;
+    FPDF_COLOR color;
+    std::vector<std::string> texts;
+    std::vector<FPDF_RECT> attachment_rects;
+} FPDF_ANNOT_ITEM;
+
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
 FPDF_GetPageItemForPFB(FPDF_PAGE page, FPDF_PAGE_ITEMS_PFB& item);
 
@@ -332,6 +346,11 @@ FPDFPage_InsertImageObject(FPDF_DOCUMENT document, FPDF_PAGE page, FPDF_IMAGE_OB
 FPDF_EXPORT void FPDF_CALLCONV
 FPDFPage_InsertRectObject(FPDF_PAGE page, FPDF_RECT_OBJ_INFO& rect_info);
 
+FPDF_EXPORT bool FPDF_CALLCONV
+FPDF_CreateAnnot(FPDF_DOCUMENT document, FPDF_PAGE page, FPDF_FONT font, FPDF_ANNOT_ITEM& info);
+
+FPDF_EXPORT bool FPDF_CALLCONV
+FPDF_GetPageAnnots(FPDF_PAGE page, std::vector<FPDF_ANNOT_ITEM>& items);
 #ifdef __cplusplus
 }
 #endif

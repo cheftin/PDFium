@@ -57,6 +57,8 @@
 #include "core/fxge/dib/cfx_dibbase.h"
 #include "third_party/base/stl_util.h"
 
+#include "constants/annotation_common.h"
+
 #if _FX_PLATFORM_ != _FX_PLATFORM_WINDOWS_
 #include <cstring>
 #include <iconv.h>
@@ -121,6 +123,11 @@ FPDF_EXPORT _FPDF_BOOKMARKS_ITEM_::_FPDF_BOOKMARKS_ITEM_() = default;
 FPDF_EXPORT _FPDF_BOOKMARKS_ITEM_::~_FPDF_BOOKMARKS_ITEM_() = default;
 FPDF_EXPORT _FPDF_BOOKMARKS_ITEM_::_FPDF_BOOKMARKS_ITEM_(const _FPDF_BOOKMARKS_ITEM_& other) = default;
 FPDF_EXPORT _FPDF_BOOKMARKS_ITEM_& _FPDF_BOOKMARKS_ITEM_::operator=(const _FPDF_BOOKMARKS_ITEM_& other) = default;
+
+FPDF_EXPORT _FPDF_ANNOT_ITEM_::_FPDF_ANNOT_ITEM_() = default;
+FPDF_EXPORT _FPDF_ANNOT_ITEM_::~_FPDF_ANNOT_ITEM_() = default;
+FPDF_EXPORT _FPDF_ANNOT_ITEM_::_FPDF_ANNOT_ITEM_(const _FPDF_ANNOT_ITEM_& other) = default;
+FPDF_EXPORT _FPDF_ANNOT_ITEM_& _FPDF_ANNOT_ITEM_::operator=(const _FPDF_ANNOT_ITEM_& other) = default;
 
 class FileAccess final : public FPDF_FILEACCESS {
   public:
@@ -1876,4 +1883,181 @@ int FPDF_GetPageRotation(FPDF_PAGE page) {
         }
     }
     return FPDF_CalcPageRotation(pPDFPage, texts_rotation_vec);
+}
+
+void FPDFRect_PageToDevice(FPDF_PAGE page, FPDF_RECT& rect) {
+    int rotation = FPDFPage_GetRotation(page);
+    int width = FPDF_GetPageWidth(page);
+    int height = FPDF_GetPageHeight(page);
+    int x,y;
+    FPDF_PageToDevice(page, 0, 0, width, height, rotation, rect.left, rect.top, &x, &y);
+    rect.left = x;
+    rect.top = y;
+    FPDF_PageToDevice(page, 0, 0, width, height, rotation, rect.right, rect.bottom, &x, &y);
+    rect.right = x;
+    rect.bottom = y;
+}
+
+void FPDFRect_DeviceToPage(FPDF_PAGE page, FPDF_RECT& rect) {
+    int rotation = FPDFPage_GetRotation(page);
+    int width = FPDF_GetPageWidth(page);
+    int height = FPDF_GetPageHeight(page);
+
+    double page_x,page_y;
+    FPDF_DeviceToPage(page, 0, 0, width, height, rotation, rect.left, rect.top, &page_x, &page_y);
+    rect.left = page_x;
+    rect.top = page_y;
+    FPDF_DeviceToPage(page, 0, 0, width, height, rotation, rect.right, rect.bottom, &page_x, &page_y);
+    rect.right = page_x;
+    rect.bottom = page_y;
+}
+
+std::string FPDF_WIDESTRINGToString(FPDF_WIDESTRING wstr) {
+    if (!wstr)
+        return std::string();
+
+    size_t counts = 0;
+    while (wstr[counts])
+        ++counts;
+
+    std::wstring result(counts, L'\0');
+    for (size_t i = 0; i < counts + 1; ++i) {
+        result[i] = wstr[i];
+    }
+    return FPDF_WStringToString(result);
+}
+
+void ProcessFreeTextAnnot(FPDF_DOCUMENT document, FPDF_ANNOTATION annot, FPDF_FONT font, FPDF_ANNOT_ITEM& item) {
+    std::vector<FPDF_PAGEOBJECT> objs;
+    float text_left = item.rect.left;
+    float text_bottom = item.rect.bottom;
+    std::vector<float> all_l, all_t, all_r, all_b;
+    for (auto iter = item.texts.rbegin(); iter != item.texts.rend(); ++iter) {
+        ScopedFPDFWideString contents = GetFPDFWideString(FPDF_StringToWString(*iter));
+        FPDF_PAGEOBJECT text_obj = FPDFPageObj_CreateTextObj(document, font, item.fontsize);
+        FPDFText_SetText(text_obj, contents.get());
+        FPDFPageObj_SetFillColor(text_obj, item.color.r, item.color.g, item.color.b, item.color.a);
+        FPDFPageObj_Transform(text_obj, 1, 0, 0, 1, text_left, text_bottom);
+
+        float left, bottom, right, top;
+        FPDFPageObj_GetBounds(text_obj, &left, &bottom, &right, &top);
+        int offset = 1;
+        all_l.push_back(left - offset);
+        all_t.push_back(top + offset);
+        all_r.push_back(right + offset);
+        all_b.push_back(bottom - offset);
+        objs.push_back(text_obj);
+        text_bottom = top + item.fontsize / 3;
+    }
+    FS_RECTF rect;
+    rect.left = *(min_element(all_l.begin(), all_l.end()));
+    rect.top = *(max_element(all_t.begin(), all_t.end()));
+    rect.right = *(max_element(all_r.begin(), all_r.end()));
+    rect.bottom = *(min_element(all_b.begin(), all_b.end()));
+    FPDFAnnot_SetRect(annot, &rect);
+
+    for (size_t i = 0; i < objs.size(); ++i) {
+        FPDFAnnot_AppendObject(annot, objs[i]);
+    }
+}
+
+FPDF_EXPORT
+bool FPDF_CreateAnnot(FPDF_DOCUMENT document, FPDF_PAGE page, FPDF_FONT font, FPDF_ANNOT_ITEM& item) {
+    if (document == nullptr || page == nullptr)
+        return false;
+
+    ScopedFPDFAnnotation annot(FPDFPage_CreateAnnot(page, item.subtype));
+    FPDFRect_DeviceToPage(page, item.rect);
+    if (item.subtype != FPDF_ANNOT_FREETEXT) {
+        FS_RECTF rect;
+        rect.left = item.rect.left;
+        rect.top = item.rect.top;
+        rect.right = item.rect.right;
+        rect.bottom = item.rect.bottom;
+        FPDFAnnot_SetRect(annot.get(), &rect);
+    }
+    if (FPDFAnnot_HasAttachmentPoints(annot.get()) && item.attachment_rects.size() > 0) {
+        for (auto& rect : item.attachment_rects) {
+            FPDFRect_DeviceToPage(page, rect);
+            FS_QUADPOINTSF quadpoints;
+            quadpoints.x1 = rect.left;
+            quadpoints.y1 = rect.top;
+            quadpoints.x2 = rect.right;
+            quadpoints.y2 = rect.top;
+            quadpoints.x3 = rect.left;
+            quadpoints.y3 = rect.bottom;
+            quadpoints.x4 = rect.right;
+            quadpoints.y4 = rect.bottom;
+            FPDFAnnot_AppendAttachmentPoints(annot.get(), &quadpoints);
+        }
+    }
+    if (item.subtype != FPDF_ANNOT_FREETEXT) {
+        FPDFAnnot_SetColor(annot.get(), FPDFANNOT_COLORTYPE_Color, item.color.r, item.color.g, item.color.b, item.color.a);
+    }
+    FPDFAnnot_SetFlags(annot.get(), FPDF_ANNOT_FLAG_PRINT);
+
+    if ((item.subtype == FPDF_ANNOT_TEXT || item.subtype == FPDF_ANNOT_FREETEXT) && !item.texts.empty()) {
+        std::string contents;
+        for (const auto &s : item.texts) {
+            contents += s;
+        }
+        ScopedFPDFWideString wideContents = GetFPDFWideString(FPDF_StringToWString(contents));
+        FPDFAnnot_SetStringValue(annot.get(), pdfium::annotation::kContents, wideContents.get());
+        if (item.subtype == FPDF_ANNOT_FREETEXT && font != nullptr) {
+            ProcessFreeTextAnnot(document, annot.get(), font, item);
+        }
+    }
+
+    FPDFPage_GenerateContent(page);
+    return true;
+}
+
+FPDF_EXPORT
+bool FPDF_GetPageAnnots(FPDF_PAGE page, std::vector<FPDF_ANNOT_ITEM>& items) {
+    if (page == nullptr)
+        return false;
+
+    int count = FPDFPage_GetAnnotCount(page);
+    if (count == 0)
+        return false;
+
+    for (int i = 0; i < count; ++i) {
+        FPDF_ANNOT_ITEM item;
+        ScopedFPDFAnnotation annot(FPDFPage_GetAnnot(page, i));
+        item.subtype = FPDFAnnot_GetSubtype(annot.get());
+        FPDFAnnot_GetColor(annot.get(), FPDFANNOT_COLORTYPE_Color, &(item.color.r), &(item.color.g), &(item.color.b), &(item.color.a));
+
+        size_t points_count = 0;
+        if (FPDFAnnot_HasAttachmentPoints(annot.get()) && (points_count = FPDFAnnot_CountAttachmentPoints(annot.get())) > 0) {
+            for (size_t j = 0; j < points_count; ++j) {
+                FS_QUADPOINTSF quadpoints;
+                if (!FPDFAnnot_GetAttachmentPoints(annot.get(), j, &quadpoints))
+                    continue;
+                FPDF_RECT rect;
+                rect.left = quadpoints.x1;
+                rect.top = quadpoints.y1;
+                rect.right = quadpoints.x2;
+                rect.bottom = quadpoints.y3;
+                FPDFRect_PageToDevice(page, rect);
+                item.attachment_rects.push_back(rect);
+            }
+        }
+        FS_RECTF rect;
+        FPDFAnnot_GetRect(annot.get(), &rect);
+        item.rect.left = rect.left;
+        item.rect.top = rect.top;
+        item.rect.right = rect.right;
+        item.rect.bottom = rect.bottom;
+        FPDFRect_PageToDevice(page, item.rect);
+
+        if (item.subtype == FPDF_ANNOT_TEXT || item.subtype == FPDF_ANNOT_FREETEXT) {
+            unsigned long length_bytes = FPDFAnnot_GetStringValue(annot.get(), pdfium::annotation::kContents, nullptr, 0);
+            std::vector<FPDF_WCHAR> buf = GetFPDFWideStringBuffer(length_bytes);
+            FPDFAnnot_GetStringValue(annot.get(), pdfium::annotation::kContents, buf.data(), length_bytes);
+            item.texts.push_back(FPDF_WIDESTRINGToString(buf.data()));
+        }
+
+        items.push_back(item);
+    }
+    return true;
 }

@@ -59,7 +59,7 @@
 
 #include "constants/annotation_common.h"
 
-#if _FX_PLATFORM_ != _FX_PLATFORM_WINDOWS_
+#if !defined(OS_WIN)
 #include <cstring>
 #include <iconv.h>
 #endif
@@ -197,7 +197,7 @@ unsigned int GetUnsignedAlpha(float alpha) {
 
 std::string decodeFontName(const ByteString &name)
 {
-#if _FX_PLATFORM_ == _FX_PLATFORM_WINDOWS_
+#if defined(OS_WIN)
     return std::string(name.c_str());
 #else
     const char* data = name.c_str();

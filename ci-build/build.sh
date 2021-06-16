@@ -122,7 +122,7 @@ curl $NOTIFICATION_MM_WEBHOOK --header "Content-Type: application/json"  --reque
       "color": "#00FF00",
       "pretext": "PDFium(${OS}) Build Completed.",
       "text": "A PDFium(${OS}) building was just completed. You can download the new package from the links below.",
-      "author_name": "Cheftin via Travis CI",
+      "author_name": "Cheftin via Github Actions",
       "author_link": "https://cxan.kdr2.com/pdfium/${OS}/",
       "title": "PDFium(${OS}) Build Completed.",
       "title_link": "https://travis-ci.org/cheftin/PDFium",

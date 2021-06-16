@@ -17,7 +17,7 @@ jobs:
           # - windows-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Build on Linux and macOS
+      - name: Build on ${{ matrix.os }}
         env:
           CXAN_TOKEN_KDR2: ${{ secrets.CXAN_TOKEN_KDR2 }}
           NOTIFICATION_MM_WEBHOOK: ${{ secrets.NOTIFICATION_MM_WEBHOOK }}

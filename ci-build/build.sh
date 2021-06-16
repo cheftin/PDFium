@@ -16,6 +16,19 @@ MINGW*)
   ;;
 esac
 
+
+if [ $OS = "linux" ]; then
+        sudo apt-get update -qq -y;
+        sudo apt-get install curl python perl -y;
+        sudo apt-get install pkg-config libglib2.0-dev -y;
+        sudo apt-get install software-properties-common -y;
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y;
+        sudo apt-get update;
+        sudo apt-get install gcc-9 g++-9 -y;
+        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 60;
+        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-9 60;
+fi
+
 # Input
 PDFium_BRANCH=cheftin
 PDFium_SOURCE_REVIISON=unknown

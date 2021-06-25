@@ -107,6 +107,11 @@ rm -f "$PDFium_INCLUDE_DIR/PRESUBMIT.py"
 cd "$PDFium_STAGING_DIR"
 tar cvf "$PDFium_ARTIFACT" -- *
 
+# Don't upload if the build is triggered by a PR
+if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+    exit 0
+fi
+
 DATE=$(date +%Y%m%d%H%M)
 curl https://cxan.kdr2.com/scripts/file-c.php \
      -F token=${CXAN_TOKEN_KDR2} -F file=@$PDFium_ARTIFACT \
@@ -125,7 +130,7 @@ curl $NOTIFICATION_MM_WEBHOOK --header "Content-Type: application/json"  --reque
       "author_name": "Cheftin via Github Actions",
       "author_link": "https://cxan.kdr2.com/pdfium/${OS}/",
       "title": "PDFium(${OS}) Build Completed.",
-      "title_link": "https://travis-ci.org/cheftin/PDFium",
+      "title_link": "https://github.com/PaodingAI/pdfium/actions",
       "fields": [
         {
           "short":true,

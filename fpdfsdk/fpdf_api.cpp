@@ -1886,7 +1886,7 @@ int FPDF_GetPageRotation(FPDF_PAGE page) {
 }
 
 void FPDFRect_PageToDevice(FPDF_PAGE page, FPDF_RECT& rect) {
-    int rotation = FPDFPage_GetRotation(page);
+    int rotation = FPDF_GetPageRotation(page);
     int width = FPDF_GetPageWidth(page);
     int height = FPDF_GetPageHeight(page);
     int x,y;
@@ -1899,7 +1899,7 @@ void FPDFRect_PageToDevice(FPDF_PAGE page, FPDF_RECT& rect) {
 }
 
 void FPDFRect_DeviceToPage(FPDF_PAGE page, FPDF_RECT& rect) {
-    int rotation = FPDFPage_GetRotation(page);
+    int rotation = FPDF_GetPageRotation(page);
     int width = FPDF_GetPageWidth(page);
     int height = FPDF_GetPageHeight(page);
 
